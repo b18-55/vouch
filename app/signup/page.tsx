@@ -1,138 +1,188 @@
 'use client'
-// 'use client' is required because this page uses React hooks (useState, useRouter).
-// Without it, Next.js would treat this as a Server Component and hooks would fail.
+// 'use client' is required because this page uses React hooks (useState, useRouter) 
+// and interacts with the browser (like reading form inputs).
 
-// --- Imports ---
-import { useState } from 'react'          // React hook for component state
-import { useRouter } from 'next/navigation' // Next.js router for redirecting after signup
-import { supabase } from '@/lib/supabase'  // Our Supabase client (from lib/supabase.ts)
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 
-/**
- * Signup page.
- * Creates a Supabase Auth user, then creates a matching profile row.
- * Redirects to /dashboard on success.
- */
 export default function SignupPage() {
-  // --- Form field state ---
-  const [name, setName] = useState('')         // User's full name (stored in profiles.full_name)
-  const [email, setEmail] = useState('')       // User's email (used for login)
-  const [password, setPassword] = useState('') // User's password (min 6 chars — Supabase requirement)
+  
+  // ==========================================
+  // 1. STATE MANAGEMENT
+  // ==========================================
+  // We need to remember what the user types into the form.
+  // useState creates a variable and a function to update it.
+  
+  const [name, setName] = useState('')               // Stores the user's full name
+  const [email, setEmail] = useState('')             // Stores the user's email
+  const [password, setPassword] = useState('')       // Stores the user's password
+  const [country, setCountry] = useState('ZA')       // Stores country ('ZA' for South Africa, 'NA' for Namibia)
+  
+  const [loading, setLoading] = useState(false)      // Disables the button while creating the account
+  const [error, setError] = useState('')             // Holds the error message if signup fails
+  
+  const router = useRouter() // Used to redirect the user to the dashboard after signup
 
-  // --- UI state ---
-  const [loading, setLoading] = useState(false) // Disables the button while the request is in flight
-  const [error, setError] = useState('')        // Holds the error message if signup fails
-
-  const router = useRouter() // Used to navigate to /dashboard after successful signup
-
-  /**
-   * Handles form submission.
-   * Flow:
-   *   1. Create the auth user via supabase.auth.signUp
-   *   2. Create the profile row via profiles.insert (RLS allows because user is signed in)
-   *   3. Redirect to /dashboard
-   */
+  // ==========================================
+  // 2. FORM SUBMISSION LOGIC
+  // ==========================================
   const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault()        // Stop the browser from reloading the page on form submit
-    setLoading(true)          // Show "Creating account…" on the button
-    setError('')              // Clear any previous error
+    e.preventDefault() // Stops the page from reloading when the form is submitted
+    setLoading(true)   // Show "Creating account..." on the button
+    setError('')       // Clear any old errors
 
-    // --- Step 1: Create the auth user ---
-    // Requires email confirmation to be OFF in Supabase (Authentication → Providers → Email)
-    // Otherwise no session is returned, and the profile insert in Step 2 will fail on RLS.
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
+    // We call Supabase Auth to create the user.
+    // IMPORTANT: We pass full_name and country into 'options.data'.
+    // The Database Trigger we just created will read this data and 
+    // automatically create a row in the 'profiles' table!
+    const { error: signUpError } = await supabase.auth.signUp({ 
+      email, 
       password,
+      options: {
+        data: {
+          full_name: name,
+          country: country,
+        }
+      }
     })
 
-    // If auth creation failed (e.g. user already exists, weak password), show the error and stop
+    // If Supabase returns an error (e.g., email already exists), show it and stop.
     if (signUpError) {
       setError(signUpError.message)
       setLoading(false)
       return
     }
 
-    // --- Step 2: Create the profile row ---
-    // profiles.id must match auth.users.id (this is how RLS links the two).
-    // The insert succeeds because the policy "Users insert own profile" requires auth.uid() = id,
-    // and the user is signed in at this point.
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({ id: data.user.id, full_name: name })
-
-      // If the profile insert failed (e.g. RLS, network), show the error and stop
-      if (profileError) {
-        setError(profileError.message)
-        setLoading(false)
-        return
-      }
-    }
-
-    // --- Step 3: Redirect to dashboard ---
+    // If successful, redirect the user to the dashboard.
     router.push('/dashboard')
   }
 
-  // --- Render ---
+  // ==========================================
+  // 3. UI RENDERING (The Page Layout)
+  // ==========================================
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <form onSubmit={handleSignup} className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        {/* Header */}
-        <h1 className="text-3xl font-bold mb-2 text-center text-gray-900">Join Vouch</h1>
-        <p className="text-gray-500 text-center mb-6 text-sm">
-          Turn your hustle into verified skills.
-        </p>
+    // 'grid lg:grid-cols-2' creates a split-screen layout on large screens
+    // (the form on the left, the blue box on the right). On mobile, it stacks.
+    <main className="grid min-h-screen bg-white lg:grid-cols-2">
+      
+      {/* ==========================================
+          LEFT SIDE: The Signup Form
+          ========================================== */}
+      <section className="flex flex-col px-5 py-6 sm:px-12 lg:px-16">
+        
+        {/* Logo that links back to the homepage */}
+        <Link href="/" className="w-fit flex items-center gap-2.5">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-600 text-white">
+            <svg fill="none" height="22" viewBox="0 0 24 24" width="22"><path d="m5 6 7 13 7-13h-4l-3 6-3-6H5Z" fill="currentColor" /><path d="m8 3 4 7 4-7" stroke="currentColor" strokeLinecap="round" strokeWidth="2" /></svg>
+          </span>
+          <span className="text-xl font-extrabold tracking-tight text-slate-950">Vouch</span>
+        </Link>
+        
+        {/* Centered form container */}
+        <div className="mx-auto my-auto w-full max-w-md py-12">
+          <p className="mb-2 text-sm font-bold text-blue-600">JOIN VOUCH</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-950">Create your free profile</h1>
+          <p className="mt-2 text-slate-500">Show what you can do and find paid work that fits.</p>
+          
+          <form className="mt-8 space-y-5" onSubmit={handleSignup}>
+            
+            {/* 1. Full Name Input */}
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-slate-800">Full name</span>
+              <input 
+                type="text" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)} // Updates state on typing
+                required 
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100" 
+                placeholder="e.g. Thabo Mokoena" 
+              />
+            </label>
+            
+            {/* 2. Email Input */}
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-slate-800">Email address</span>
+              <input 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                required 
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100" 
+                placeholder="you@example.com" 
+              />
+            </label>
 
-        {/* Full name input
-            text-gray-900 = typed text is nearly black (high contrast)
-            placeholder-gray-500 = hint text is medium grey (readable but obviously a hint) */}
-        <input
-          type="text"
-          placeholder="Full name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          className="w-full p-3 border border-gray-300 rounded mb-3 text-gray-900 placeholder-gray-500"
-        />
+            {/* 3. Password Input */}
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-slate-800">Password</span>
+              <input 
+                type="password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                required 
+                minLength={6} // Supabase requires passwords to be at least 6 characters
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100" 
+                placeholder="At least 8 characters" 
+              />
+            </label>
 
-        {/* Email input */}
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full p-3 border border-gray-300 rounded mb-3 text-gray-900 placeholder-gray-500"
-        />
+            {/* 4. Country Dropdown (Required by teammate's SRS) */}
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-slate-800">Country</span>
+              <select 
+                value={country} 
+                onChange={(e) => setCountry(e.target.value)}
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              >
+                <option value="ZA">South Africa (ZAR)</option>
+                <option value="NA">Namibia (NAD)</option>
+              </select>
+            </label>
 
-        {/* Password input — min 6 chars because Supabase enforces this by default */}
-        <input
-          type="password"
-          placeholder="Password (min 6 characters)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-          className="w-full p-3 border border-gray-300 rounded mb-4 text-gray-900 placeholder-gray-500"
-        />
+            {/* Error Message Display */}
+            {error && <p className="text-red-600 text-sm font-bold">{error}</p>}
+            
+            {/* Submit Button */}
+            <button 
+              type="submit" 
+              disabled={loading} // Disables button while loading to prevent double-clicks
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Creating account…' : 'Create my profile'}
+            </button>
+          </form>
+          
+          {/* Link to Login Page */}
+          <p className="mt-6 text-center text-sm text-slate-500">
+            Already have an account? <Link href="/login" className="font-bold text-blue-600">Log in</Link>
+          </p>
+        </div>
+      </section>
 
-        {/* Submit button — disabled while loading to prevent double submission */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white p-3 rounded font-semibold hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? 'Creating account…' : 'Sign up'}
-        </button>
-
-        {/* Error message (only shown if error state is not empty) */}
-        {error && <p className="text-red-600 mt-4 text-sm">{error}</p>}
-
-        {/* Link to login page */}
-        <p className="text-center mt-6 text-sm text-gray-600">
-          Already have an account?{' '}
-          <a href="/login" className="text-blue-600 font-medium">Log in</a>
-        </p>
-      </form>
-    </div>
+      {/* ==========================================
+          RIGHT SIDE: The Blue Decorative Box
+          ========================================== */}
+      {/* 'hidden lg:flex' means this section is hidden on phones and only shows on desktop screens */}
+      <section className="relative hidden overflow-hidden bg-blue-700 p-16 text-white lg:flex lg:flex-col lg:justify-between">
+        
+        {/* Background circle decoration */}
+        <div className="absolute -right-28 -top-28 h-96 w-96 rounded-full border-[70px] border-blue-600" />
+        
+        {/* Quote Text */}
+        <div className="relative mt-24 max-w-lg">
+          <p className="text-4xl font-extrabold leading-tight tracking-tight">“I already had the skills. Vouch helped me see them.”</p>
+          <p className="mt-6 text-blue-100">Turn informal work, volunteering and side hustles into a profile you can be proud of.</p>
+        </div>
+        
+        {/* Stats at the bottom */}
+        <div className="relative flex gap-8 border-t border-blue-500 pt-8">
+          <div><p className="text-3xl font-extrabold">1–5</p><p className="text-sm text-blue-200">day opportunities</p></div>
+          <div><p className="text-3xl font-extrabold">100%</p><p className="text-sm text-blue-200">free for youth</p></div>
+        </div>
+      </section>
+      
+    </main>
   )
 }
