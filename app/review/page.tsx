@@ -1,140 +1,151 @@
 'use client'
-// 'use client' is required because this page uses React state (useState, useEffect), 
-// Next.js routing, and interacts with the Supabase database.
+// 'use client' tells Next.js this page runs in the browser. We need this because
+// we use React state, handle URL parameters, and make API requests.
 
 import { useEffect, useState, Suspense } from 'react'
+// useEffect: Runs code when the page first loads.
+// useState: Stores variables that update the screen when they change.
+// Suspense: A React feature required by Next.js when reading URL parameters.
+
 import { useRouter, useSearchParams } from 'next/navigation'
+// useRouter: Lets us redirect the user to different pages.
+// useSearchParams: Lets us read the URL (e.g., grabbing the "123" from /review?id=123).
+
 import { supabase } from '@/lib/supabase'
+// Our secure connection to the database.
+
 import Review, { SuggestedSkill } from '@/components/Review'
+// Your teammate's beautiful UI component, and the TypeScript type for skills.
 
 // ==========================================
-// 1. INNER COMPONENT (Handles the Logic)
+// INNER COMPONENT: Handles the Logic
 // ==========================================
-// Next.js requires components that read from the URL (useSearchParams) 
-// to be wrapped in a Suspense boundary. So we build the main logic here.
+// Next.js requires components that read from the URL to be inside a Suspense boundary.
 function ReviewContent() {
   
-  // 'useSearchParams' lets us read the URL. 
-  // Remember in Step 1, we redirected the user to `/review?id=123`. 
-  // This line extracts that `123` so we know which experience to load.
+  // 1. GRAB THE URL DATA
   const searchParams = useSearchParams()
-  const experienceId = searchParams.get('id') 
-  
-  const router = useRouter()
+  const experienceId = searchParams.get('id') // Extracts the ID from the URL
+  const router = useRouter() // Used to redirect users
 
-  // --- STATE ---
-  // Holds the original text the user typed in the Hustle form
-  const [experienceText, setExperienceText] = useState('')
-  
-  // Holds the list of skills we want to suggest to the user
-  const [suggestions, setSuggestions] = useState<SuggestedSkill[]>([])
-  
-  // True while we are fetching data from the database
-  const [loading, setLoading] = useState(true)
-  
-  // Holds an error message if something goes wrong
-  const [error, setError] = useState('')
+  // 2. SETUP STATE
+  const [experienceText, setExperienceText] = useState('') // Holds the text the user typed
+  const [suggestions, setSuggestions] = useState<SuggestedSkill[]>([]) // Holds the AI results
+  const [loading, setLoading] = useState(true) // Shows "Asking AI..." while waiting
+  const [error, setError] = useState('') // Holds any error messages
 
-  // --- 1. FETCH THE EXPERIENCE TEXT ---
-  // useEffect runs automatically when the page loads.
+  // 3. FETCH DATA & CALL THE AI
   useEffect(() => {
     const loadData = async () => {
       
-      // If there is no ID in the URL, send them back to the Hustle page
+      // If there's no ID in the URL, kick them back to the Hustle page.
       if (!experienceId) {
         router.push('/hustle')
         return
       }
 
-      // Check if the user is logged in
+      // Check if the user is logged in.
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return router.push('/login')
 
-      // Fetch the description text of that specific experience from Supabase
+      // Fetch the experience text from the Supabase database.
       const { data } = await supabase
         .from('experiences')
         .select('description')
-        .eq('id', experienceId) // Find the row that matches the ID in the URL
-        .single() // We only expect one row back
+        .eq('id', experienceId) // Match the ID from the URL
+        .single() // We only want one row
 
       if (data) {
-        // Save the text to state so we can show it on the screen
-        setExperienceText(data.description)
+        // --- AI INTEGRATION STARTS HERE ---
+        setExperienceText(data.description) // Save the text to display it on the UI
         
-        // ========================================================
-        // TEMPORARY DUMMY DATA 
-        // we will replace this block with a real call to Google AI.
-        // For now, we are just faking it to prove the UI works!
-        // ========================================================
-        setSuggestions([
-          { name: "Customer service", quote: "helped customers find products" },
-          { name: "Cash handling", quote: "managed the till" },
-          { name: "Stock management", quote: "counted stock at the end of each day" },
-          { name: "Communication", quote: "helped customers" }
-        ])
+        try {
+          // We send a POST request to our secure backend route (/api/extract).
+          // The backend has the API key, talks to Google, and sends back the skills.
+          const response = await fetch('/api/extract', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json', // Telling the server we are sending JSON
+            },
+            body: JSON.stringify({ text: data.description }), // Sending the user's text
+          })
+
+          // Wait for the AI to reply and convert it to JSON
+          const aiData = await response.json()
+          
+          // If the AI successfully found skills, save them to state!
+          if (aiData.skills && aiData.skills.length > 0) {
+            setSuggestions(aiData.skills)
+          } else {
+            setError('The AI could not find any skills. Try adding more detail.')
+          }
+        } catch (err) {
+          setError('Failed to connect to the AI. Please try again.')
+        }
+        // --- AI INTEGRATION ENDS HERE ---
+
       } else {
         setError('Experience not found.')
       }
       
-      // We are done loading, hide the spinner
+      // Stop the loading spinner now that everything is done.
       setLoading(false)
     }
     
     loadData()
-  }, [experienceId, router])
+  }, [experienceId, router]) // Dependencies: Re-runs if ID or router changes.
 
-  // --- 2. SAVE CONFIRMED SKILLS TO DATABASE ---
-  // This function is called when the user clicks the "Confirm" button 
-  // in your teammate's UI component.
+  // 4. SAVE CONFIRMED SKILLS TO DATABASE
+  // This function is triggered when the user clicks "Confirm X skills" on the UI.
   const handleConfirm = async (selectedNames: string[]) => {
     setError('')
-    
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
-    // We have an array of skill names (e.g., ["Customer service", "Cash handling"])
-    // We need to format it into rows for the database.
-    const skillsToInsert = selectedNames.map(name => ({
-      profile_id: session.user.id, // Link to the user
-      name: name,                  // The skill name
-      source: 'ai',                // Mark it as AI-suggested
-      verified: false              // Self-reported for now (SRS requirement)
+    // We have an array of strings (e.g., ["Cash handling", "Customer service"]).
+    // We need to convert this into database rows.
+    const skillsToInsert = selectedNames.map((name) => ({
+      profile_id: session.user.id, // Link the skill to the user
+      name: name,                  // The skill name (e.g., "Cash handling")
+      source: 'ai',                // Mark it as an AI-generated skill
+      verified: false              // The user hasn't verified it with evidence yet
     }))
 
-    // Insert them into the 'skills' table in Supabase
+    // Insert the rows into the 'skills' table in Supabase
     const { error: dbError } = await supabase
       .from('skills')
       .insert(skillsToInsert)
 
-    // If it fails, throw an error so the UI stops trying to show the success screen
+    // If the database throws an error, stop the UI from showing success.
     if (dbError) {
       setError(dbError.message)
       throw new Error(dbError.message) 
     }
-    
-    // If it succeeds, the Review component automatically switches to the success screen!
   }
 
-  // While loading, show a simple text message
-  if (loading) return <p className="p-8 text-center text-slate-500">Finding skills...</p>
+  // 5. RENDER THE UI
+  // If we are still waiting for the AI, show a loading message.
+  if (loading) {
+    return <p className="p-8 text-center text-slate-500">Asking AI to find your skills...</p>
+  }
 
+  // Once loaded, render the teammate's UI component.
   return (
     <div className="min-h-screen bg-[#f7f9fc] pb-20 pt-8">
-      {/* We pass all the data and functions to your teammate's UI component */}
       <Review 
-        experienceText={experienceText}
-        suggestions={suggestions}
-        onConfirm={handleConfirm}
-        errorMessage={error}
+        experienceText={experienceText} // The text the user typed
+        suggestions={suggestions}        // The AI-generated skills
+        onConfirm={handleConfirm}        // The save function
+        errorMessage={error}             // Any errors to display
       />
     </div>
   )
 }
 
 // ==========================================
-// 2. MAIN PAGE COMPONENT
+// MAIN PAGE EXPORT
 // ==========================================
-// This wraps the content in Suspense to satisfy Next.js routing requirements.
+// Wraps the inner component in Suspense to prevent Next.js build errors.
 export default function ReviewPage() {
   return (
     <Suspense fallback={<p className="p-8 text-center text-slate-500">Loading page...</p>}>
