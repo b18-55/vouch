@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+// 1. IMPORT THE BOTTOM NAV COMPONENT
+// We import it here so it can be rendered globally on every page.
+import BottomNav from "@/components/BottomNav";
+
 // Next.js uses these font loaders to optimize font loading.
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +35,6 @@ export const metadata: Metadata = {
 // ROOT LAYOUT
 // ==========================================
 // This component wraps EVERY page in your application. 
-// If you want a navigation bar at the top of every single page, you would put it here.
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -44,6 +47,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       */}
       <body className="min-h-full flex flex-col">
         {children}
+        
+        {/* 2. RENDER THE BOTTOM NAV COMPONENT */}
+        {/* It sits below {children}, meaning it appears on top of all page content at the bottom of the screen. */}
+        <BottomNav />
       </body>
     </html>
   );
