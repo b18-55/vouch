@@ -37,7 +37,7 @@ function getErrorDetails(error: unknown) {
 // ==========================================
 async function generateContentWithRetry(prompt: string) {
   const models = ['gemini-3.8-flash', 'gemini-3.5-flash']
-  const maxRetriesPerModel = 3
+  const maxRetriesPerModel = 1
   
   // We use 'unknown' here instead of 'any' to satisfy TypeScript
   let lastError: unknown = null

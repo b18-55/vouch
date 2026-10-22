@@ -1,0 +1,21 @@
+{
+  "name": "Vouch - Verified Skills",
+  "short_name": "Vouch",
+  "description": "Turn informal hustle into verified skills and paid work.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f9fc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://api.iconify.design/lucide:shield-check.svg?color=%232563eb",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "https://api.iconify.design/lucide:shield-check.svg?color=%232563eb",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

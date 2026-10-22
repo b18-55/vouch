@@ -1,10 +1,13 @@
 'use client'
+// 'use client' is required because we use React hooks (useState, useEffect) 
+// and Next.js routing to make the page interactive.
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button, Icon, PageTitle } from '@/components/ui'
 
+// TypeScript type to ensure we know exactly what shape our profile data has.
 type Profile = {
   id: string
   full_name: string | null
@@ -12,19 +15,24 @@ type Profile = {
 }
 
 export default function DashboardPage() {
+  // --- STATE ---
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
+  // --- FETCH DATA ON LOAD ---
   useEffect(() => {
     const load = async () => {
+      // Check if the user is logged in
       const { data: { session } } = await supabase.auth.getSession()
 
+      // If no session, kick them back to the login page
       if (!session) {
         router.push('/login')
         return
       }
 
+      // Fetch the user's profile from Supabase
       const { data } = await supabase
         .from('profiles')
         .select('id, full_name, trust_score')
@@ -37,39 +45,93 @@ export default function DashboardPage() {
     load()
   }, [router])
 
+  // --- LOGOUT HANDLER ---
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
   }
 
-  if (loading) return <p className="p-8 text-center text-slate-500">Loading your dashboard...</p>
+  // --- DYNAMIC TIME & DATE LOGIC ---
+  // This calculates the greeting based on the user's local time
+  const currentHour = new Date().getHours()
+  const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening'
+  
+  // This formats today's date dynamically (e.g., "Thursday, 22 October")
+  const todayDate = new Date().toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  // ==========================================
+  // SKELETON LOADER (Instead of "Loading...")
+  // ==========================================
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fc] pb-20 animate-pulse">
+        {/* Top Nav Skeleton */}
+        <header className="h-16 bg-white border-b border-slate-200 px-5 lg:px-8" />
+        
+        <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
+          {/* Page Title Skeleton */}
+          <div className="mb-8 space-y-3">
+            <div className="h-4 w-32 bg-slate-200 rounded" />
+            <div className="h-8 w-64 bg-slate-300 rounded" />
+            <div className="h-4 w-48 bg-slate-200 rounded" />
+          </div>
+
+          {/* Banner & Profile Strength Skeleton */}
+          <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+            <div className="h-64 bg-slate-200 rounded-3xl" />
+            <div className="h-64 bg-white border border-slate-200 rounded-3xl" />
+          </div>
+
+          {/* Task Matches Skeleton */}
+          <div className="mt-9">
+            <div className="h-6 w-48 bg-slate-300 rounded mb-4" />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="h-48 bg-white border border-slate-200 rounded-2xl" />
+              <div className="h-48 bg-white border border-slate-200 rounded-2xl" />
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#f7f9fc] pb-20">
       
-      {/* Top Navigation */}
+      {/* --- TOP NAVIGATION BAR --- */}
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-5 lg:px-8">
         <p className="text-sm font-semibold text-slate-500">Your experience counts.</p>
         <div className="flex items-center gap-4">
+          
+          {/* Logout Button */}
           <button onClick={handleLogout} className="text-sm font-bold text-slate-500 hover:text-black">
             Log out
           </button>
-          <button className="grid h-9 w-9 place-items-center rounded-full bg-blue-100 text-sm font-extrabold text-blue-700">
+          
+          {/* Avatar Button routes to the Profile Page */}
+          <button 
+            onClick={() => router.push('/profile')}
+            className="grid h-9 w-9 place-items-center rounded-full bg-blue-100 text-sm font-extrabold text-blue-700 hover:bg-blue-200 transition-colors cursor-pointer"
+          >
             {profile?.full_name?.slice(0, 2).toUpperCase() || 'U'}
           </button>
+          
         </div>
       </header>
 
+      {/* --- MAIN CONTENT --- */}
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
+        
+        {/* PageTitle uses the dynamic date and dynamic greeting */}
         <PageTitle 
-          eyebrow="Wednesday, 21 October" 
-          title={`Good morning, ${profile?.full_name?.split(' ')[0] || 'friend'}`} 
+          eyebrow={todayDate} 
+          title={`${greeting}, ${profile?.full_name?.split(' ')[0] || 'friend'}`} 
           text="Here’s your next best step." 
         />
 
         <section className="mt-7 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
           
-          {/* Blue Profile Tip Banner */}
+          {/* --- BLUE PROFILE TIP BANNER --- */}
           <div className="relative overflow-hidden rounded-3xl bg-blue-700 p-6 text-white sm:p-8">
             <div className="relative z-10 max-w-lg">
               <span className="inline-flex rounded-full bg-blue-500/40 px-3 py-1 text-xs font-bold text-blue-50">PROFILE TIP</span>
@@ -80,7 +142,7 @@ export default function DashboardPage() {
             <div className="absolute -bottom-24 -right-16 h-72 w-72 rounded-full border-[55px] border-blue-600" />
           </div>
 
-          {/* Profile Strength Card */}
+          {/* --- PROFILE STRENGTH CARD --- */}
           <div className="rounded-3xl border border-slate-200 bg-white p-6">
             <div className="flex items-start justify-between">
               <div>
@@ -109,18 +171,21 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Good Matches Section */}
+        {/* --- GOOD MATCHES SECTION --- */}
         <section className="mt-9">
           <div className="flex items-end justify-between">
             <div>
               <h2 className="text-xl font-extrabold text-slate-950">Good matches for you</h2>
               <p className="mt-1 text-sm text-slate-500">Based on your self-reported skills</p>
             </div>
-            <button className="hidden text-sm font-bold text-blue-600 sm:block" onClick={() => router.push('/tasks')}>View all opportunities</button>
+            <button className="hidden text-sm font-bold text-blue-600 sm:block" onClick={() => router.push('/tasks')}>
+              View all opportunities
+            </button>
           </div>
           
-          {/* Hardcoded sample tasks for now - we will make this real in Part 10 */}
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            
+            {/* Task Card 1 */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-700"><Icon name="briefcase" /></span>
@@ -135,6 +200,7 @@ export default function DashboardPage() {
               </div>
             </div>
             
+            {/* Task Card 2 */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-700"><Icon name="briefcase" /></span>
@@ -148,6 +214,7 @@ export default function DashboardPage() {
                 <span className="flex items-center gap-1.5 text-slate-500"><Icon name="clock" size={16} />4 days</span>
               </div>
             </div>
+
           </div>
         </section>
       </main>
