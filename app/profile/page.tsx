@@ -20,7 +20,7 @@ type Profile = {
   trust_score: number | null
 }
 
-// FIX 1: Added 'id' to the Skill type so we have a unique identifier from the database
+// Added 'id' to the Skill type so we have a unique identifier from the database to use as a React key
 type Skill = { 
   id: string
   name: string 
@@ -57,13 +57,13 @@ export default function ProfilePage() {
         return
       }
 
-      // Step B: Fetch Profile, Skills, and Experiences AT THE SAME TIME.
+      // Step B: Fetch Profile, Skills, and Experiences AT THE SAME TIME for speed.
       const [profileRes, skillsRes, expRes] = await Promise.all([
         
-        // 1. Get the user's basic info from the 'profiles' table.
+        // 1. Get the user's basic info.
         supabase.from('profiles').select('*').eq('id', session.user.id).single(),
         
-        // FIX 2: Fetch the 'id' along with the 'name' so React has a unique key to use
+        // 2. Fetch the 'id' along with the 'name' so React has a unique key.
         supabase.from('skills').select('id, name').eq('profile_id', session.user.id),
         
         // 3. Get all experiences linked to this user, sorted newest first.
@@ -80,9 +80,43 @@ export default function ProfilePage() {
     loadProfile()
   }, [router])
 
-  // --- LOADING STATE ---
+  // ==========================================
+  // 3. SKELETON LOADER (Instead of "Loading...")
+  // ==========================================
+  // This instantly renders the shape of the page so it feels incredibly fast.
   if (loading) {
-    return <p className="p-8 text-center text-slate-500">Loading your profile...</p>
+    return (
+      <div className="min-h-screen bg-[#f7f9fc] pb-20 animate-pulse">
+        {/* Top Nav Skeleton */}
+        <header className="h-16 bg-white border-b border-slate-200 px-5 lg:px-8" />
+        
+        <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
+          {/* Profile Header Skeleton */}
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+            <div className="h-28 bg-slate-200" />
+            <div className="px-5 pb-7 sm:px-8">
+              <div className="-mt-12 flex items-end gap-4">
+                <div className="h-24 w-24 rounded-3xl bg-slate-300 border-4 border-white" />
+                <div className="pb-2 space-y-3">
+                  <div className="h-6 w-48 bg-slate-300 rounded" />
+                  <div className="h-4 w-32 bg-slate-200 rounded" />
+                </div>
+              </div>
+              <div className="mt-6 h-4 w-3/4 bg-slate-200 rounded" />
+            </div>
+          </div>
+          
+          {/* Skills & Experience Skeleton */}
+          <div className="mt-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+            <div className="space-y-5">
+              <div className="h-40 bg-white border border-slate-200 rounded-2xl" />
+              <div className="h-64 bg-white border border-slate-200 rounded-2xl" />
+            </div>
+            <div className="h-48 bg-slate-800 rounded-2xl opacity-10" />
+          </div>
+        </main>
+      </div>
+    )
   }
 
   // --- HELPER LOGIC ---
@@ -90,14 +124,13 @@ export default function ProfilePage() {
     ? profile.full_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() 
     : 'U'
 
-  // FIX 3: Create a deduplicated list of skills before rendering.
-  // We use a Map to keep only one instance of each skill name.
+  // Create a deduplicated list of skills before rendering to prevent duplicate key warnings.
   const uniqueSkills = Array.from(
     new Map(skills.map(skill => [skill.name, skill])).values()
   )
 
   // ==========================================
-  // 3. RENDER THE UI
+  // 4. RENDER THE UI
   // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] pb-20">
@@ -166,7 +199,6 @@ export default function ProfilePage() {
                 {uniqueSkills.length === 0 ? (
                   <p className="text-sm text-slate-500">No skills added yet. Log an experience to get AI suggestions!</p>
                 ) : (
-                  // FIX 4: Map through 'uniqueSkills' and use 'skill.id' as the key
                   uniqueSkills.map((skill) => (
                     <span 
                       key={skill.id} 

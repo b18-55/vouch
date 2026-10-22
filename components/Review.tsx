@@ -1,8 +1,8 @@
 "use client";
-// 'use client' is required because this component uses React state (useState) 
-// to track which checkboxes the user clicks.
+// 'use client' is required because this component uses React state (useState, useEffect) 
+// to track which checkboxes the user clicks and to handle asynchronous data updates.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 // We import the shared UI pieces from your teammate's ui.tsx file.
 import { Button, Icon, PageTitle } from "./ui";
 import Link from "next/link";
@@ -25,7 +25,7 @@ type ReviewProps = {
   backHref?: string; // Where the "Back" button goes (defaults to /hustle)
   profileHref?: string; // Where the "View Profile" button goes (defaults to /profile)
   homeHref?: string; // Where the "Back to Home" button goes (defaults to /dashboard)
-  errorMessage?: string; // If saving fails, the parent page passes an error message here
+  errorMessage?: string; // If saving fails (e.g., database error), the parent page passes an error message here
 };
 
 // ==========================================
@@ -43,8 +43,7 @@ export default function Review({
   
   // --- STATE ---
   // 'selected' is an array of skill names that the user has currently checked.
-  // We initialize it by extracting the 'name' from every suggestion, meaning ALL are checked by default.
-  const [selected, setSelected] = useState<string[]>(suggestions.map((s) => s.name));
+  const [selected, setSelected] = useState<string[]>([]);
   
   // 'saved' tracks whether the user has successfully saved these skills to the database.
   // If true, we show a success screen instead of the checkboxes.
@@ -53,6 +52,16 @@ export default function Review({
   // 'busy' tracks if we are currently waiting for Supabase to save the data.
   const [busy, setBusy] = useState(false);
 
+  // --- EFFECTS ---
+
+  // FIX: Auto-select all skills when the component loads or when the AI results arrive.
+  // This prevents the glitch where the page renders before the data is fully passed in.
+  useEffect(() => {
+    if (suggestions.length > 0) {
+      setSelected(suggestions.map((s) => s.name));
+    }
+  }, [suggestions]);
+
   // --- FUNCTIONS ---
 
   // This runs when the user clicks the big "Confirm X skills" button.
@@ -60,7 +69,6 @@ export default function Review({
     setBusy(true); // Disable the button and show "Saving..."
     try {
       // We call the function passed down from the parent page (app/review/page.tsx)
-      // and pass the array of selected skill names to it.
       await onConfirm(selected); 
       setSaved(true); // If it succeeds, switch to the Success Screen
     } finally {
@@ -143,7 +151,7 @@ export default function Review({
       {/* The list of suggested skills */}
       <div className="mt-5 space-y-3">
         {/* We loop through every skill the AI suggested */}
-        {suggestions.map((s) => {
+        {suggestions.map((s, index) => {
           
           // Check if this specific skill is in the 'selected' array
           const active = selected.includes(s.name);
@@ -155,7 +163,8 @@ export default function Review({
               className={`flex w-full cursor-pointer items-center gap-4 rounded-2xl border p-4 text-left transition ${
                 active ? "border-blue-300 bg-blue-50/60" : "border-slate-200 bg-white opacity-60"
               }`}
-              key={s.name}
+              // Added index to the key just in case the AI returns the exact same skill name twice
+              key={`${s.name}-${index}`}
               onClick={() => toggle(s.name)} // Toggle when the row is clicked
               onKeyDown={(e) => {
                 // Accessibility: Allow toggling with the Space or Enter key
@@ -198,26 +207,38 @@ export default function Review({
         })}
       </div>
 
-      {/* Show an error message if saving failed */}
-      {errorMessage && (
+      {/* FIX: Show an error message ONLY if saving to the database failed AND there are no skills */}
+      {errorMessage && suggestions.length === 0 && (
         <p className="mt-4 text-sm font-bold text-red-600" role="alert">
           {errorMessage}
         </p>
       )}
 
-      {/* Bottom Action Bar */}
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-slate-400">Skills are labelled self-reported until verified.</p>
-        
-        {/* The Confirm Button */}
-        <Button 
-          className="sm:px-8" 
-          disabled={busy || selected.length === 0} // Disabled if saving, or if the user unchecked everything
-          onClick={confirm}
-        >
-          {busy ? "Saving..." : `Confirm ${selected.length} ${selected.length === 1 ? "skill" : "skills"}`}
-        </Button>
-      </div>
+      {/* ==========================================
+          BOTTOM ACTION BAR
+          ========================================== */}
+      {/* ONLY show the Confirm button if the AI actually found skills. */}
+      {suggestions.length > 0 ? (
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-slate-400">Skills are labelled self-reported until verified.</p>
+          
+          <Button 
+            className="sm:px-8" 
+            disabled={busy || selected.length === 0} // Disabled if saving, or if the user unchecked everything
+            onClick={confirm}
+          >
+            {busy ? "Saving..." : `Confirm ${selected.length} ${selected.length === 1 ? "skill" : "skills"}`}
+          </Button>
+        </div>
+      ) : (
+        // If there are 0 skills (AI failed or found nothing), show a calm "Go Back" button instead
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-slate-500">Try adding a bit more detail to your description next time.</p>
+          <Button className="sm:px-8" href={backHref} kind="secondary">
+            Go Back
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

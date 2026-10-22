@@ -59,8 +59,41 @@ export default function DashboardPage() {
   // This formats today's date dynamically (e.g., "Thursday, 22 October")
   const todayDate = new Date().toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
 
-  // Show a loading state while we fetch the data
-  if (loading) return <p className="p-8 text-center text-slate-500">Loading your dashboard...</p>
+  // ==========================================
+  // SKELETON LOADER (Instead of "Loading...")
+  // ==========================================
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fc] pb-20 animate-pulse">
+        {/* Top Nav Skeleton */}
+        <header className="h-16 bg-white border-b border-slate-200 px-5 lg:px-8" />
+        
+        <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
+          {/* Page Title Skeleton */}
+          <div className="mb-8 space-y-3">
+            <div className="h-4 w-32 bg-slate-200 rounded" />
+            <div className="h-8 w-64 bg-slate-300 rounded" />
+            <div className="h-4 w-48 bg-slate-200 rounded" />
+          </div>
+
+          {/* Banner & Profile Strength Skeleton */}
+          <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+            <div className="h-64 bg-slate-200 rounded-3xl" />
+            <div className="h-64 bg-white border border-slate-200 rounded-3xl" />
+          </div>
+
+          {/* Task Matches Skeleton */}
+          <div className="mt-9">
+            <div className="h-6 w-48 bg-slate-300 rounded mb-4" />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="h-48 bg-white border border-slate-200 rounded-2xl" />
+              <div className="h-48 bg-white border border-slate-200 rounded-2xl" />
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#f7f9fc] pb-20">
@@ -75,7 +108,7 @@ export default function DashboardPage() {
             Log out
           </button>
           
-          {/* FIX 1: Avatar Button now routes to the Profile Page */}
+          {/* Avatar Button routes to the Profile Page */}
           <button 
             onClick={() => router.push('/profile')}
             className="grid h-9 w-9 place-items-center rounded-full bg-blue-100 text-sm font-extrabold text-blue-700 hover:bg-blue-200 transition-colors cursor-pointer"
@@ -89,7 +122,7 @@ export default function DashboardPage() {
       {/* --- MAIN CONTENT --- */}
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
         
-        {/* FIX 2 & 3: PageTitle now uses the dynamic date and dynamic greeting */}
+        {/* PageTitle uses the dynamic date and dynamic greeting */}
         <PageTitle 
           eyebrow={todayDate} 
           title={`${greeting}, ${profile?.full_name?.split(' ')[0] || 'friend'}`} 
@@ -104,10 +137,8 @@ export default function DashboardPage() {
               <span className="inline-flex rounded-full bg-blue-500/40 px-3 py-1 text-xs font-bold text-blue-50">PROFILE TIP</span>
               <h2 className="mt-5 text-2xl font-extrabold sm:text-3xl">Add your shop experience</h2>
               <p className="mt-2 max-w-md text-sm leading-6 text-blue-100">We’ll help turn what you did into skills employers understand. It takes less than 3 minutes.</p>
-              {/* Button routes to the Hustle Log page */}
               <Button className="mt-6" icon="arrow" kind="secondary" href="/hustle">Log an experience</Button>
             </div>
-            {/* Decorative background circle */}
             <div className="absolute -bottom-24 -right-16 h-72 w-72 rounded-full border-[55px] border-blue-600" />
           </div>
 
@@ -118,7 +149,6 @@ export default function DashboardPage() {
                 <p className="text-sm font-bold text-slate-900">Profile strength</p>
                 <p className="mt-1 text-xs text-slate-500">Self-reported</p>
               </div>
-              {/* Note: This is still hardcoded to 70%. We will make it dynamic on Friday. */}
               <span className="text-3xl font-extrabold text-slate-950">70%</span>
             </div>
             <div className="mt-5 h-2 rounded-full bg-slate-100">
@@ -153,7 +183,6 @@ export default function DashboardPage() {
             </button>
           </div>
           
-          {/* Note: These are hardcoded sample tasks for the dashboard. The real tasks are on the /tasks page. */}
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             
             {/* Task Card 1 */}
