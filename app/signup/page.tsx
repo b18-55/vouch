@@ -20,6 +20,9 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')       // Stores the user's password
   const [country, setCountry] = useState('ZA')       // Stores country ('ZA' for South Africa, 'NA' for Namibia)
   
+  // NEW: State to toggle the password visibility (eye icon)
+  const [showPassword, setShowPassword] = useState(false)
+  
   const [loading, setLoading] = useState(false)      // Disables the button while creating the account
   const [error, setError] = useState('')             // Holds the error message if signup fails
   
@@ -114,18 +117,42 @@ export default function SignupPage() {
               />
             </label>
 
-            {/* 3. Password Input */}
+            {/* ==========================================
+                3. PASSWORD INPUT WITH EYE ICON
+                ========================================== */}
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-slate-800">Password</span>
-              <input 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required 
-                minLength={6} // Supabase requires passwords to be at least 6 characters
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100" 
-                placeholder="At least 8 characters" 
-              />
+              <span className="relative block">
+                {/* 
+                  The 'type' attribute changes based on the showPassword state.
+                  If true, it shows normal text. If false, it shows dots.
+                */}
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  required 
+                  minLength={6} // Supabase requires passwords to be at least 6 characters
+                  // We added 'pr-12' (padding-right) so the text doesn't overlap the eye icon
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-4 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100" 
+                  placeholder="At least 8 characters" 
+                />
+                
+                {/* The Eye Icon Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)} // Toggles the state on click
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? (
+                    // Eye Slash Icon (Shown when password is visible, click to hide)
+                    <svg fill="none" height="20" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="20"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" x2="23" y1="1" y2="23"></line></svg>
+                  ) : (
+                    // Eye Icon (Shown when password is hidden, click to show)
+                    <svg fill="none" height="20" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="20"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  )}
+                </button>
+              </span>
             </label>
 
             {/* 4. Country Dropdown (Required by teammate's SRS) */}

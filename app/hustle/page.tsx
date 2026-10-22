@@ -28,7 +28,7 @@ export default function HustlePage() {
   // Holds the list of past experiences to display in the UI
   const [experiences, setExperiences] = useState<ExperienceItem[]>([])
   
-  // Holds a true/false value. If true, we show a "Loading..." message.
+  // Holds a true/false value. If true, we show the Skeleton Loader.
   const [loading, setLoading] = useState(true) 
   
   // Holds a true/false value. If true, the "Save" button says "Saving..." and is disabled.
@@ -81,7 +81,7 @@ export default function HustlePage() {
         setExperiences(formattedData)
       }
       
-      // Step E: We are done loading, so hide the "Loading..." text.
+      // Step E: We are done loading, so hide the Skeleton Loader.
       setLoading(false)
     }
     
@@ -136,12 +136,53 @@ export default function HustlePage() {
   // 4. RENDER THE PAGE
   // ==========================================
   
-  // If the data is still loading, show a simple text message.
+  // ==========================================
+  // SKELETON LOADER (Replaces the text loading message)
+  // ==========================================
   if (loading) {
-    return <p className="p-8 text-center text-slate-500">Loading your hustle...</p>
+    return (
+      <div className="min-h-screen bg-[#f7f9fc] pb-20">
+        {/* Top Nav Skeleton */}
+        <nav className="bg-white border-b border-slate-200 p-4 mb-2 flex items-center">
+          <div className="h-5 w-32 animate-pulse rounded bg-slate-200" />
+        </nav>
+
+        <div className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
+          <div className="animate-pulse">
+            {/* Page Title & Subtitle Skeleton */}
+            <div className="h-8 w-48 rounded bg-slate-200" />
+            <div className="mt-2 h-4 w-64 rounded bg-slate-200" />
+            
+            {/* Blue "Informal work is real experience" Banner Skeleton */}
+            <div className="mt-7 h-24 w-full rounded-2xl bg-slate-200" />
+            
+            {/* Experience Cards Skeleton Loop */}
+            <div className="mt-6 space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+                  {/* Title */}
+                  <div className="h-5 w-48 rounded bg-slate-200" />
+                  {/* Date */}
+                  <div className="mt-2 h-3 w-32 rounded bg-slate-200" />
+                  {/* Description text */}
+                  <div className="mt-4 h-12 w-full rounded bg-slate-200" />
+                  {/* Skill tags */}
+                  <div className="mt-4 flex gap-2">
+                    <div className="h-6 w-16 rounded-full bg-slate-200" />
+                    <div className="h-6 w-20 rounded-full bg-slate-200" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
-  // If loading is done, render the actual page.
+  // ==========================================
+  // ACTUAL PAGE CONTENT
+  // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] pb-20">
       
