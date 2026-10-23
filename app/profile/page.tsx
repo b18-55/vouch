@@ -168,7 +168,10 @@ export default function ProfilePage() {
                 </div>
               </div>
               
-              <Button kind="secondary" onClick={() => {}}>
+              {/* ==========================================
+                  UPDATED: Link to the new Edit Profile page
+                  ========================================== */}
+              <Button kind="secondary" onClick={() => router.push('/profile/edit')}>
                 <Icon name="edit" size={17} />
                 Edit profile
               </Button>
