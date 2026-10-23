@@ -1,6 +1,6 @@
 'use client'
-// 'use client' is required because we use React state, read the URL, 
-// and handle button clicks.
+// 'use client' tells Next.js that this component runs in the browser.
+// We need this because we use React state, read the URL, and handle button clicks.
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
@@ -11,7 +11,7 @@ import { Button, Icon } from '@/components/ui'
 // ==========================================
 // 1. TYPESCRIPT TYPES
 // ==========================================
-// This defines the shape of the data we expect from the 'micro_tasks' table.
+// This defines the exact shape of the data we expect from the 'micro_tasks' table.
 type Task = {
   id: string
   title: string
@@ -34,11 +34,11 @@ export default function TaskDetailPage() {
   const params = useParams()
   const taskId = params.id as string
 
-  // --- STATE ---
+  // --- STATE MANAGEMENT ---
   const [task, setTask] = useState<Task | null>(null) // Holds the job details
-  const [loading, setLoading] = useState(true)        // Shows spinner while fetching
-  const [applying, setApplying] = useState(false)     // Shows "Sending..." on the button
-  const [hasApplied, setHasApplied] = useState(false) // Changes UI to green success box
+  const [loading, setLoading] = useState(true)        // Shows the skeleton loader while fetching
+  const [applying, setApplying] = useState(false)     // Shows "Sending..." on the Apply button
+  const [hasApplied, setHasApplied] = useState(false) // Changes the UI to the green "Application sent" box
   const [error, setError] = useState('')              // Holds any database errors
 
   // ==========================================
@@ -48,21 +48,21 @@ export default function TaskDetailPage() {
   useEffect(() => {
     const loadTaskAndStatus = async () => {
       
-      // 1. Security check: Make sure the user is logged in.
+      // Step A: Check if the user is logged in.
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        router.push('/login')
+        router.push('/login') // Kick them to login if not
         return
       }
 
-      // 2. Fetch the specific task from the database using the ID from the URL.
+      // Step B: Fetch the specific task from the database using the ID from the URL.
       const { data: taskData, error: taskError } = await supabase
         .from('micro_tasks')
         .select('*')
         .eq('id', taskId)
         .single() // We expect exactly one job to match this ID
 
-      // If the job doesn't exist, or the database fails:
+      // If the job doesn't exist, or the database fails, show an error.
       if (taskError || !taskData) {
         setError('Task not found.')
         setLoading(false)
@@ -70,7 +70,7 @@ export default function TaskDetailPage() {
       }
       setTask(taskData)
 
-      // 3. Check if the user has ALREADY applied for this job.
+      // Step C: Check if the user has ALREADY applied for this job.
       // We search the 'applications' table for a row that matches BOTH 
       // this task's ID and this user's ID.
       const { data: applicationData } = await supabase
@@ -86,17 +86,18 @@ export default function TaskDetailPage() {
         setHasApplied(true)
       }
 
+      // Step D: Turn off the skeleton loader.
       setLoading(false)
     }
     
     if (taskId) loadTaskAndStatus()
-  }, [taskId, router])
+  }, [taskId, router]) // This effect re-runs if the taskId in the URL changes.
 
   // ==========================================
   // 4. HANDLE THE APPLY BUTTON CLICK
   // ==========================================
   const handleApply = async () => {
-    setApplying(true)
+    setApplying(true) // Show "Sending..." on the button
     setError('')
 
     const { data: { session } } = await supabase.auth.getSession()
@@ -120,20 +121,79 @@ export default function TaskDetailPage() {
       setHasApplied(true)
     }
     
-    setApplying(false)
+    setApplying(false) // Stop the "Sending..." state
   }
 
-  // --- RENDER STATES ---
-  if (loading) return <p className="p-8 text-center text-slate-500">Loading task details...</p>
+  // ==========================================
+  // 5. SKELETON LOADER UI
+  // ==========================================
+  // If we are still waiting for the database, show this pulsing layout 
+  // instead of plain text.
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fc] pb-20">
+        
+        {/* Top Nav Skeleton */}
+        <header className="sticky top-0 z-20 flex h-16 items-center border-b border-slate-200 bg-white px-5 lg:px-8">
+           <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
+        </header>
+        
+        <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
+          <div className="grid gap-5 lg:grid-cols-[1.5fr_.8fr]">
+            
+            {/* Left Skeleton (Job Details) */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
+              <div className="flex items-start gap-4">
+                {/* Icon placeholder */}
+                <div className="h-14 w-14 rounded-xl bg-slate-200 animate-pulse" />
+                <div className="space-y-3 flex-1">
+                  {/* Match badge placeholder */}
+                  <div className="h-6 w-24 bg-slate-200 rounded-full animate-pulse" />
+                  {/* Title placeholder */}
+                  <div className="h-8 w-2/3 bg-slate-200 rounded animate-pulse" />
+                  {/* Employer placeholder */}
+                  <div className="h-4 w-1/3 bg-slate-200 rounded animate-pulse" />
+                </div>
+              </div>
+              
+              {/* Quick facts placeholders (Pay, Duration, Location) */}
+              <div className="my-7 grid grid-cols-3 gap-4 border-y border-slate-100 py-5">
+                <div className="h-10 bg-slate-200 rounded animate-pulse" />
+                <div className="h-10 bg-slate-200 rounded animate-pulse" />
+                <div className="h-10 bg-slate-200 rounded animate-pulse" />
+              </div>
+              
+              {/* Description placeholders */}
+              <div className="space-y-3">
+                <div className="h-4 w-full bg-slate-200 rounded animate-pulse" />
+                <div className="h-4 w-full bg-slate-200 rounded animate-pulse" />
+                <div className="h-4 w-3/4 bg-slate-200 rounded animate-pulse" />
+              </div>
+            </div>
+
+            {/* Right Skeleton (Apply Card) */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 h-64">
+              <div className="h-4 w-20 bg-slate-200 rounded animate-pulse mb-4" />
+              <div className="h-10 w-32 bg-slate-200 rounded animate-pulse mb-2" />
+              <div className="h-12 w-full bg-slate-200 rounded-xl animate-pulse mt-8" />
+            </div>
+            
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // If loading is done, but the task is null (meaning it failed to load), show an error.
   if (!task) return <p className="p-8 text-center text-red-500">{error}</p>
 
   // ==========================================
-  // 5. RENDER THE UI
+  // 6. RENDER THE ACTUAL UI
   // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] pb-20">
       
-      {/* Top Navigation Bar */}
+      {/* Top Navigation */}
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-5 lg:px-8">
         <Link href="/tasks" className="flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-black">
           <Icon name="back" size={18} />
