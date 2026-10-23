@@ -100,7 +100,15 @@ function ReviewContent() {
           // Call our backend API route.
           const response = await fetch('/api/extract', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              // ==========================================
+              // THE SECURITY FIX: Pass the user's access token.
+              // Our backend will verify this token before calling Groq.
+              // This prevents unauthorized users from spamming our AI.
+              // ==========================================
+              'Authorization': `Bearer ${session?.access_token}` 
+            },
             body: JSON.stringify({ text: data.description }),
             signal: controller.signal // Attach the controller so we can cancel this fetch
           })
