@@ -125,10 +125,11 @@ export default function LoginPage() {
                   UPDATED: FORGOT PASSWORD ALERT
                   ========================================== */}
               {/* When clicked, it triggers a simple browser alert. */}
+                            {/* Forgot Password */}
               <button 
                 className="text-sm font-bold text-blue-600 hover:text-blue-800" 
                 type="button"
-                onClick={() => alert("Please contact vouch.hackathon@gmail.com to reset your password.")}
+                onClick={() => alert("Please contact support@vouch.app to reset your password.")}
               >
                 Forgot password?
               </button>
