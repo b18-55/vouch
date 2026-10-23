@@ -135,7 +135,7 @@ export default function DashboardPage() {
           <div className="relative overflow-hidden rounded-3xl bg-blue-700 p-6 text-white sm:p-8">
             <div className="relative z-10 max-w-lg">
               <span className="inline-flex rounded-full bg-blue-500/40 px-3 py-1 text-xs font-bold text-blue-50">PROFILE TIP</span>
-              <h2 className="mt-5 text-2xl font-extrabold sm:text-3xl">Add your shop experience</h2>
+              <h2 className="mt-5 text-2xl font-extrabold sm:text-3xl">Turn your daily grind into gold</h2>
               <p className="mt-2 max-w-md text-sm leading-6 text-blue-100">We’ll help turn what you did into skills employers understand. It takes less than 3 minutes.</p>
               <Button className="mt-6" icon="arrow" kind="secondary" href="/hustle">Log an experience</Button>
             </div>

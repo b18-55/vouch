@@ -96,11 +96,47 @@ export default function ApplicationsPage() {
     loadApplications()
   }, [router])
 
-  // If we are still waiting for the database, show a simple text message.
-  if (loading) return <p className="p-8 text-center text-slate-500">Loading your applications...</p>
+  // ==========================================
+  // 4. LOADING STATE (SKELETON LOADER)
+  // ==========================================
+  // Instead of just showing boring text, we show a pulsing grey layout 
+  // that mimics the actual application cards. This makes the app feel 
+  // premium and prevents layout shift when the real data loads.
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fc] pb-20">
+        {/* Skeleton Top Nav */}
+        <header className="sticky top-0 z-20 flex h-16 items-center border-b border-slate-200 bg-white px-5 lg:px-8" />
+        
+        <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
+          {/* Skeleton Page Title */}
+          <div className="h-8 w-48 bg-slate-200 rounded-md animate-pulse mb-6"></div>
+          
+          {/* Skeleton Application Cards */}
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5">
+                {/* Skeleton Icon */}
+                <div className="h-11 w-11 rounded-xl bg-slate-200 animate-pulse" />
+                
+                {/* Skeleton Text Lines */}
+                <div className="flex-1 space-y-3">
+                  <div className="h-4 w-1/3 bg-slate-200 rounded animate-pulse" />
+                  <div className="h-3 w-1/2 bg-slate-200 rounded animate-pulse" />
+                </div>
+                
+                {/* Skeleton Status Badge */}
+                <div className="h-6 w-20 bg-slate-200 rounded-full animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   // ==========================================
-  // 4. RENDER THE UI
+  // 5. RENDER THE UI
   // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] pb-20">
