@@ -1,12 +1,12 @@
 'use client'
-// 'use client' is required because we use React hooks (useState, useEffect) 
-// and Next.js routing to make the page interactive.
+// 'use client' is required because we use React state, read the URL, 
+// and handle button clicks.
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Icon, PageTitle } from '@/components/ui'
+import { Button, Icon } from '@/components/ui'
 
 // ==========================================
 // 1. TYPESCRIPT TYPES
@@ -21,182 +21,249 @@ type Task = {
   location: string | null
 }
 
-export default function TasksPage() {
-  // --- STATE ---
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('') 
+export default function TaskDetailPage() {
   const router = useRouter()
+  
+  // ==========================================
+  // 2. DYNAMIC ROUTING (Reading the URL)
+  // ==========================================
+  const params = useParams()
+  const taskId = params.id as string
 
-  // --- FETCH TASKS ON LOAD ---
+  // --- STATE ---
+  const [task, setTask] = useState<Task | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [applying, setApplying] = useState(false)
+  const [hasApplied, setHasApplied] = useState(false)
+  const [error, setError] = useState('')
+
+  // ==========================================
+  // 3. FETCH TASK AND CHECK APPLICATION STATUS
+  // ==========================================
   useEffect(() => {
-    const loadTasks = async () => {
+    const loadTaskAndStatus = async () => {
+      
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push('/login')
         return
       }
 
-      const { data } = await supabase
+      const { data: taskData, error: taskError } = await supabase
         .from('micro_tasks')
         .select('*')
-        .eq('status', 'open')
+        .eq('id', taskId)
+        .single()
 
-      if (data) {
-        setTasks(data)
+      if (taskError || !taskData) {
+        setError('Task not found.')
+        setLoading(false)
+        return
       }
-      
+      setTask(taskData)
+
+      const { data: applicationData } = await supabase
+        .from('applications')
+        .select('id')
+        .eq('task_id', taskId)
+        .eq('profile_id', session.user.id)
+        .single()
+
+      if (applicationData) {
+        setHasApplied(true)
+      }
+
       setLoading(false)
     }
-    loadTasks()
-  }, [router])
-
-  // --- FILTER LOGIC ---
-  const filteredTasks = tasks.filter(task => 
-    task.title.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+    
+    if (taskId) loadTaskAndStatus()
+  }, [taskId, router])
 
   // ==========================================
-  // 2. SKELETON LOADER (Replaces the text loading message)
+  // 4. HANDLE THE APPLY BUTTON CLICK
+  // ==========================================
+  const handleApply = async () => {
+    setApplying(true)
+    setError('')
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+
+    const { error: applyError } = await supabase
+      .from('applications')
+      .insert({
+        task_id: taskId,
+        profile_id: session.user.id,
+        status: 'submitted'
+      })
+
+    if (applyError) {
+      setError(applyError.message)
+    } else {
+      setHasApplied(true)
+    }
+    
+    setApplying(false)
+  }
+
+  // ==========================================
+  // 5. SKELETON LOADER (Replaces the text loading state)
   // ==========================================
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f9fc] pb-20">
-        
-        {/* Top Nav Skeleton */}
         <header className="sticky top-0 z-20 flex h-16 items-center border-b border-slate-200 bg-white px-5 lg:px-8">
-          <div className="h-5 w-32 animate-pulse rounded bg-slate-200" />
+           <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
         </header>
-
-        <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
-          <div className="animate-pulse">
-            {/* Title & Subtitle Skeleton */}
-            <div className="h-8 w-64 rounded bg-slate-200" />
-            <div className="mt-2 h-4 w-96 rounded bg-slate-200" />
+        <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
+          <div className="grid gap-5 lg:grid-cols-[1.5fr_.8fr]">
             
-            {/* Search Bar & Dropdowns Skeleton */}
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <div className="h-12 flex-1 rounded-xl bg-slate-200" />
-              <div className="h-12 w-full sm:w-32 rounded-xl bg-slate-200" />
-              <div className="h-12 w-full sm:w-32 rounded-xl bg-slate-200" />
+            {/* Left Skeleton */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
+              <div className="flex items-start gap-4">
+                <div className="h-14 w-14 rounded-xl bg-slate-200 animate-pulse" />
+                <div className="space-y-3 flex-1">
+                  <div className="h-6 w-24 bg-slate-200 rounded-full animate-pulse" />
+                  <div className="h-8 w-2/3 bg-slate-200 rounded animate-pulse" />
+                  <div className="h-4 w-1/3 bg-slate-200 rounded animate-pulse" />
+                </div>
+              </div>
+              <div className="my-7 grid grid-cols-3 gap-4 border-y border-slate-100 py-5">
+                <div className="h-10 bg-slate-200 rounded animate-pulse" />
+                <div className="h-10 bg-slate-200 rounded animate-pulse" />
+                <div className="h-10 bg-slate-200 rounded animate-pulse" />
+              </div>
+              <div className="space-y-3">
+                <div className="h-4 w-full bg-slate-200 rounded animate-pulse" />
+                <div className="h-4 w-full bg-slate-200 rounded animate-pulse" />
+                <div className="h-4 w-3/4 bg-slate-200 rounded animate-pulse" />
+              </div>
             </div>
 
-            {/* Task Cards Grid Skeleton */}
-            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <div className="flex justify-between">
-                    <div className="h-10 w-10 rounded-xl bg-slate-200" />
-                    <div className="h-6 w-20 rounded-full bg-slate-200" />
-                  </div>
-                  <div className="mt-5 h-5 w-3/4 rounded bg-slate-200" />
-                  <div className="mt-2 h-4 w-1/2 rounded bg-slate-200" />
-                  <div className="my-4 h-px bg-slate-200" />
-                  <div className="flex justify-between">
-                    <div className="h-5 w-16 rounded bg-slate-200" />
-                    <div className="h-5 w-16 rounded bg-slate-200" />
-                  </div>
-                </div>
-              ))}
+            {/* Right Skeleton */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 h-64">
+              <div className="h-4 w-20 bg-slate-200 rounded animate-pulse mb-4" />
+              <div className="h-10 w-32 bg-slate-200 rounded animate-pulse mb-2" />
+              <div className="h-12 w-full bg-slate-200 rounded-xl animate-pulse mt-8" />
             </div>
+            
           </div>
         </main>
       </div>
     )
   }
 
+  if (!task) return <p className="p-8 text-center text-red-500">{error}</p>
+
   // ==========================================
-  // 3. ACTUAL PAGE CONTENT
+  // 6. RENDER THE UI
   // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] pb-20">
       
-      {/* Top Navigation */}
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-5 lg:px-8">
-        <Link href="/dashboard" className="text-sm font-bold text-slate-500 hover:text-black">
-          ← Back to Dashboard
+        <Link href="/tasks" className="flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-black">
+          <Icon name="back" size={18} />
+          All opportunities
         </Link>
       </header>
 
-      <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
-        
-        {/* Page Title */}
-        <PageTitle 
-          title="Find opportunities" 
-          text="Short, paid work matched to what you can do." 
-        />
-
-        {/* --- SEARCH AND FILTER BAR --- */}
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <label className="relative flex-1">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-              <Icon name="search" size={19} />
-            </span>
-            <input 
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              placeholder="Search by role or skill" 
-              value={searchQuery} 
-            />
-          </label>
-          <select className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 outline-none">
-            <option>Any location</option>
-            <option>Remote</option>
-          </select>
-          <select className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 outline-none">
-            <option>Any pay</option>
-            <option>R1,000+</option>
-          </select>
-        </div>
-
-        {/* --- TASK LIST --- */}
-        <p className="mt-7 text-sm font-semibold text-slate-500">
-          {filteredTasks.length} open opportunities
-        </p>
-        
-        {filteredTasks.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-12 text-center">
-            <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400">
-              <Icon name="search" />
-            </span>
-            <h2 className="mt-4 font-extrabold text-slate-900">No opportunities found</h2>
-            <p className="mt-1 text-sm text-slate-500">Try a different role, skill or filter.</p>
-          </div>
-        ) : (
-          <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredTasks.map((task) => (
-              <button 
-                key={task.id}
-                onClick={() => router.push(`/tasks/${task.id}`)}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-700">
-                    <Icon name="briefcase" />
-                  </span>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-700">
-                    92% match
-                  </span>
-                </div>
-                
-                <h3 className="mt-5 text-base font-extrabold text-slate-950 group-hover:text-blue-700">
+      <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
+        <div className="grid gap-5 lg:grid-cols-[1.5fr_.8fr]">
+          
+          <article className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
+            <div className="flex items-start gap-4">
+              <span className="grid h-14 w-14 place-items-center rounded-xl bg-amber-50 text-amber-700">
+                <Icon name="briefcase" size={26} />
+              </span>
+              <div>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-700">
+                  92% skills match
+                </span>
+                <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
                   {task.title}
-                </h3>
-                <p className="mt-1 text-sm text-slate-500">{task.employer_name}</p>
-                
-                <div className="my-4 h-px bg-slate-100" />
-                
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-extrabold text-slate-900">R{task.pay_amount.toLocaleString()}</span>
-                  <span className="flex items-center gap-1.5 text-slate-500">
-                    <Icon name="clock" size={16} />
-                    {task.duration_days} {task.duration_days === 1 ? "day" : "days"}
-                  </span>
+                </h1>
+                <p className="mt-1 text-sm font-semibold text-slate-500">{task.employer_name}</p>
+              </div>
+            </div>
+
+            <div className="my-7 grid grid-cols-2 gap-4 border-y border-slate-100 py-5 sm:grid-cols-3">
+              <div className="flex gap-2.5">
+                <span className="text-blue-600"><Icon name="wallet" size={19} /></span>
+                <div>
+                  <p className="text-xs text-slate-400">Pay</p>
+                  <p className="mt-0.5 text-sm font-bold text-slate-900">R{task.pay_amount.toLocaleString()} total</p>
                 </div>
-              </button>
-            ))}
-          </div>
-        )}
+              </div>
+              <div className="flex gap-2.5">
+                <span className="text-blue-600"><Icon name="clock" size={19} /></span>
+                <div>
+                  <p className="text-xs text-slate-400">Duration</p>
+                  <p className="mt-0.5 text-sm font-bold text-slate-900">{task.duration_days} days</p>
+                </div>
+              </div>
+              <div className="flex gap-2.5">
+                <span className="text-blue-600"><Icon name="location" size={19} /></span>
+                <div>
+                  <p className="text-xs text-slate-400">Location</p>
+                  <p className="mt-0.5 text-sm font-bold text-slate-900">{task.location || 'Remote'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-7 text-sm leading-7 text-slate-600">
+              <h2 className="mb-2 text-base font-extrabold text-slate-950">About this opportunity</h2>
+              <p>{task.description}</p>
+            </div>
+
+            <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-900">
+              <strong>Good to know:</strong> No formal experience needed. A supervisor will show you what to do.
+            </div>
+          </article>
+
+          <aside>
+            <div className="sticky top-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-sm text-slate-500">You’ll earn</p>
+              <p className="mt-1 text-3xl font-extrabold text-slate-950">R{task.pay_amount.toLocaleString()}</p>
+              <p className="mt-1 text-xs text-slate-400">for {task.duration_days} days of work</p>
+              
+              <div className="my-5 h-px bg-slate-100" />
+              
+              {hasApplied ? (
+                <>
+                  <div className="flex items-center gap-3 rounded-xl bg-emerald-50 p-4 text-emerald-800">
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-100">
+                      <Icon name="check" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-extrabold">Application sent</p>
+                      <p className="text-xs">{new Date().toLocaleDateString('en-ZA')}</p>
+                    </div>
+                  </div>
+                  <Button className="mt-3 w-full" kind="secondary" href="/applications">
+                    View my applications
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {error && <p className="mb-3 text-sm font-bold text-red-600">{error}</p>}
+                  <Button 
+                    className="w-full" 
+                    disabled={applying}
+                    onClick={handleApply}
+                  >
+                    {applying ? 'Sending...' : 'Apply for this opportunity'}
+                  </Button>
+                  <p className="mt-3 text-center text-xs leading-5 text-slate-400">
+                    Your Vouch profile will be shared with the employer.
+                  </p>
+                </>
+              )}
+
+            </div>
+          </aside>
+
+        </div>
       </main>
     </div>
   )
