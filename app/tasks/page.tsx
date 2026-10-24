@@ -1,16 +1,9 @@
 'use client'
-// 'use client' is required because this component uses React hooks (useState, useEffect) 
-// and interacts with the browser's URL and user clicks.
-
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Icon, PageTitle } from '@/components/ui'
 
-// ==========================================
-// 1. TYPESCRIPT TYPES
-// ==========================================
 type Task = {
   id: string
   title: string
@@ -19,24 +12,20 @@ type Task = {
   duration_days: number
   employer_name: string
   location: string | null
+  skills_required?: string[] | null
 }
 
 export default function TasksPage() {
-  
-  // --- STATE MANAGEMENT ---
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
-  
-  // State for the Hackathon Filters
+  const [userSkills, setUserSkills] = useState<string[]>([])
+
   const [searchQuery, setSearchQuery] = useState('')
   const [locationFilter, setLocationFilter] = useState('Any location')
   const [payFilter, setPayFilter] = useState('Any pay')
-  
+
   const router = useRouter()
 
-  // ==========================================
-  // 2. FETCH TASKS FROM SUPABASE
-  // ==========================================
   useEffect(() => {
     const loadTasks = async () => {
       try {
@@ -51,160 +40,118 @@ export default function TasksPage() {
           .select('*')
           .eq('status', 'open')
 
-        if (error) throw error 
+        if (error) throw error
         if (data) setTasks(data)
-        
+
+        const { data: skillsData } = await supabase
+          .from('skills')
+          .select('name')
+          .eq('profile_id', session.user.id)
+
+        if (skillsData) {
+          setUserSkills(skillsData.map((s) => s.name))
+        }
       } catch (err) {
-        console.error("Error fetching tasks:", err)
+        console.error('Error fetching tasks:', err)
       } finally {
-        // 'finally' ensures the skeleton loader turns off even if the fetch fails.
         setLoading(false)
       }
     }
-    
+
     loadTasks()
   }, [router])
 
-  // ==========================================
-  // 3. THE FILTER LOGIC (Hackathon Feature)
-  // ==========================================
-  // This function creates a new array containing only the jobs that pass ALL checks.
   const filteredTasks = tasks.filter((task) => {
-    
-    // Check A: Search Bar (case-insensitive title match)
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase())
 
-    // Check B: Location Dropdown (checks if the task location includes the selected city)
-    const matchesLocation = 
-      locationFilter === 'Any location' || 
+    const matchesLocation =
+      locationFilter === 'Any location' ||
       (task.location && task.location.toLowerCase().includes(locationFilter.toLowerCase()))
 
-    // Check C: Pay Dropdown (checks if the task meets the minimum pay requirement)
     let matchesPay = true
     if (payFilter === 'R1,000+') matchesPay = task.pay_amount >= 1000
     if (payFilter === 'R1,500+') matchesPay = task.pay_amount >= 1500
 
-    // The job is only kept if it passes all three checks.
     return matchesSearch && matchesLocation && matchesPay
   })
 
-  // ==========================================
-  // 4. SKELETON LOADING UI (Dark Mode Compatible)
-  // ==========================================
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 pb-20 transition-colors duration-200">
-        <header className="sticky top-0 z-20 flex h-16 items-center border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-5 lg:px-8">
-          <Link href="/dashboard" className="text-sm font-bold text-slate-500 dark:text-slate-400">
-            ← Back to Dashboard
-          </Link>
-        </header>
-        
-        <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
-          <div className="h-8 w-64 animate-pulse rounded bg-slate-200 dark:bg-slate-700 mb-2" />
-          <div className="h-4 w-96 animate-pulse rounded bg-slate-200 dark:bg-slate-700 mb-6" />
-          
-          <div className="flex gap-3 mb-8">
-            <div className="h-12 flex-1 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
-            <div className="h-12 w-32 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-48 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-5 shadow-sm">
-                <div className="flex justify-between mb-4">
-                  <div className="h-10 w-10 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
-                  <div className="h-6 w-20 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700" />
-                </div>
-                <div className="h-6 w-3/4 animate-pulse rounded bg-slate-200 dark:bg-slate-700 mb-2" />
-                <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200 dark:bg-slate-700 mb-6" />
-                <div className="flex justify-between">
-                  <div className="h-4 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-                  <div className="h-4 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </main>
+      <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8 animate-pulse">
+        <div className="h-8 w-64 bg-slate-200 dark:bg-slate-700 rounded mb-2" />
+        <div className="h-4 w-96 bg-slate-200 dark:bg-slate-700 rounded mb-6" />
+        <div className="flex gap-3 mb-8">
+          <div className="h-12 flex-1 bg-slate-200 dark:bg-slate-700 rounded-xl" />
+          <div className="h-12 w-32 bg-slate-200 dark:bg-slate-700 rounded-xl" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-48 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+          ))}
+        </div>
       </div>
     )
   }
 
-  // ==========================================
-  // 5. MAIN UI
-  // ==========================================
   return (
-    <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-20">
-      
-      {/* Top Header Navigation */}
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-5 lg:px-8 transition-colors duration-200">
-        <Link href="/dashboard" className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white transition-colors">
-          ← Back to Dashboard
-        </Link>
-      </header>
+    <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
+      <PageTitle title="Find opportunities" text="Short, paid work matched to what you can do." />
 
-      <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
-        <PageTitle title="Find opportunities" text="Short, paid work matched to what you can do." />
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <label className="relative flex-1">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
+            <Icon name="search" size={19} />
+          </span>
+          <input
+            className="h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-11 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950/50 transition"
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by role or skill"
+            value={searchQuery}
+          />
+        </label>
 
-        {/* Search and Filter Bar */}
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          
-          {/* Search Input */}
-          <label className="relative flex-1">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
-              <Icon name="search" size={19} />
-            </span>
-            <input 
-              className="h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-11 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950/50 transition" 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              placeholder="Search by role or skill" 
-              value={searchQuery} 
-            />
-          </label>
+        <select
+          className="h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none cursor-pointer transition"
+          value={locationFilter}
+          onChange={(e) => setLocationFilter(e.target.value)}
+        >
+          <option className="dark:bg-slate-800">Any location</option>
+          <option className="dark:bg-slate-800">Remote</option>
+          <option className="dark:bg-slate-800">Windhoek</option>
+          <option className="dark:bg-slate-800">Cape Town</option>
+          <option className="dark:bg-slate-800">Johannesburg</option>
+        </select>
 
-          {/* Location Filter Dropdown */}
-          <select 
-            className="h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none cursor-pointer transition"
-            value={locationFilter}
-            onChange={(e) => setLocationFilter(e.target.value)}
-          >
-            <option className="dark:bg-slate-800">Any location</option>
-            <option className="dark:bg-slate-800">Remote</option>
-            <option className="dark:bg-slate-800">Windhoek</option>
-            <option className="dark:bg-slate-800">Cape Town</option>
-            <option className="dark:bg-slate-800">Johannesburg</option>
-          </select>
+        <select
+          className="h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none cursor-pointer transition"
+          value={payFilter}
+          onChange={(e) => setPayFilter(e.target.value)}
+        >
+          <option className="dark:bg-slate-800">Any pay</option>
+          <option className="dark:bg-slate-800">R1,000+</option>
+          <option className="dark:bg-slate-800">R1,500+</option>
+        </select>
+      </div>
 
-          {/* Pay Filter Dropdown */}
-          <select 
-            className="h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none cursor-pointer transition"
-            value={payFilter}
-            onChange={(e) => setPayFilter(e.target.value)}
-          >
-            <option className="dark:bg-slate-800">Any pay</option>
-            <option className="dark:bg-slate-800">R1,000+</option>
-            <option className="dark:bg-slate-800">R1,500+</option>
-          </select>
+      <p className="mt-7 text-sm font-semibold text-slate-500 dark:text-slate-400">
+        {filteredTasks.length} open opportunities
+      </p>
+
+      {filteredTasks.length === 0 ? (
+        <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-12 text-center transition-colors duration-200">
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-300">
+            <Icon name="search" />
+          </span>
+          <h2 className="mt-4 font-extrabold text-slate-900 dark:text-white">No opportunities found</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Try a different role, skill or filter.</p>
         </div>
+      ) : (
+        <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filteredTasks.map((task) => {
+            const isMatch = task.skills_required?.some((skill) => userSkills.includes(skill))
 
-        {/* Task Count (updates dynamically) */}
-        <p className="mt-7 text-sm font-semibold text-slate-500 dark:text-slate-400">
-          {filteredTasks.length} open opportunities
-        </p>
-        
-        {/* Empty State or Task Grid */}
-        {filteredTasks.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-12 text-center transition-colors duration-200">
-            <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-300">
-              <Icon name="search" />
-            </span>
-            <h2 className="mt-4 font-extrabold text-slate-900 dark:text-white">No opportunities found</h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Try a different role, skill or filter.</p>
-          </div>
-        ) : (
-          <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredTasks.map((task) => (
-              <button 
+            return (
+              <button
                 key={task.id}
                 onClick={() => router.push(`/tasks/${task.id}`)}
                 className="group rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 dark:hover:border-blue-600 hover:shadow-lg"
@@ -213,27 +160,38 @@ export default function TasksPage() {
                   <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400">
                     <Icon name="briefcase" />
                   </span>
-                  <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900">
-                    92% match
-                  </span>
+
+                  <div className="flex items-center gap-2">
+                    {isMatch && (
+                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-extrabold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+                        Good match
+                      </span>
+                    )}
+                    <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900">
+                      92% match
+                    </span>
+                  </div>
                 </div>
+
                 <h3 className="mt-5 text-base font-extrabold text-slate-950 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
                   {task.title}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.employer_name}</p>
                 <div className="my-4 h-px bg-slate-100 dark:bg-slate-700" />
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100">R{task.pay_amount.toLocaleString()}</span>
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100">
+                    R{task.pay_amount.toLocaleString()}
+                  </span>
                   <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
                     <Icon name="clock" size={16} />
-                    {task.duration_days} {task.duration_days === 1 ? "day" : "days"}
+                    {task.duration_days} {task.duration_days === 1 ? 'day' : 'days'}
                   </span>
                 </div>
               </button>
-            ))}
-          </div>
-        )}
-      </main>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

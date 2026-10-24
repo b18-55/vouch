@@ -1,110 +1,76 @@
 "use client";
-// 'use client' indicates this is a Client Component running in the browser.
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { Icon } from "@/components/ui";
 
 export default function SettingsPage() {
   const router = useRouter();
   
-  // ==========================================
-  // 1. STATE MANAGEMENT
-  // ==========================================
-  const [activeTab, setActiveTab] = useState<"profile" | "account" | "notifications" | "appearance">("profile");
+  const [openSection, setOpenSection] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchingUser, setFetchingUser] = useState(true);
 
-  // Profile Form States
+  // User Data
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  // FIX: Removed 'phone' state because the column doesn't exist in the database yet.
   const [location, setLocation] = useState("");
-  const [country, setCountry] = useState("South Africa");
-  const [bio, setBio] = useState("");
-  const [portfolioUrl, setPortfolioUrl] = useState("");
-
-  // Account Security States
-  const [oldPassword, setOldPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-
-  // Preference & Dark Mode States
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [taskReminders, setTaskReminders] = useState(true);
-  
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("theme") === "dark";
-    }
-    return false;
-  });
-
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // ==========================================
-  // 2. FETCH USER & PROFILE DATA
-  // ==========================================
+  // Dark Mode State
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Load User & Theme
   useEffect(() => {
+    setIsDarkMode(document.documentElement.classList.contains("dark"));
+
     const fetchUserData = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
         if (!session?.user) {
           router.push("/login");
           return;
         }
-
         setEmail(session.user.email || "");
 
-        // FIX: Removed 'phone' from the select query to prevent database errors.
-        const { data: profile, error } = await supabase
+        const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, location, country, bio, portfolio_url")
+          .select("full_name, location")
           .eq("id", session.user.id)
           .single();
 
-        if (!error && profile) {
+        if (profile) {
           setFullName(profile.full_name || "");
           setLocation(profile.location || "");
-          setCountry(profile.country || "South Africa");
-          setBio(profile.bio || "");
-          setPortfolioUrl(profile.portfolio_url || "");
         }
       } catch (err) {
         console.error("Error loading user profile:", err);
       } finally {
-        setFetchingUser(false);
+        // Simulate a tiny delay for smooth transition
+        setTimeout(() => setFetchingUser(false), 300); 
       }
     };
-
     fetchUserData();
   }, [router]);
 
-  // ==========================================
-  // 3. DARK MODE SYNCHRONIZATION
-  // ==========================================
-  useEffect(() => {
-    if (darkMode) {
+  const toggleDarkMode = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    if (newMode) {
       document.documentElement.classList.add("dark");
       localStorage.setItem("theme", "dark");
     } else {
       document.documentElement.classList.remove("dark");
       localStorage.setItem("theme", "light");
     }
-  }, [darkMode]);
+  };
 
-  // ==========================================
-  // 4. LOG OUT HANDLER
-  // ==========================================
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
   };
 
-  // ==========================================
-  // 5. SAVE HANDLER
-  // ==========================================
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -112,234 +78,214 @@ export default function SettingsPage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        router.push("/login");
-        return;
-      }
+      if (!session?.user) return router.push("/login");
 
-      if (activeTab === "account" && newPassword) {
-        if (!oldPassword) {
-          setStatusMessage({ type: "error", text: "Please enter your current (old) password." });
-          setLoading(false);
-          return;
-        }
-        if (newPassword !== confirmPassword) {
-          setStatusMessage({ type: "error", text: "New password and confirmation do not match." });
-          setLoading(false);
-          return;
-        }
+      const { error } = await supabase.from("profiles").upsert({
+        id: session.user.id,
+        full_name: fullName,
+        location: location,
+        updated_at: new Date().toISOString(),
+      });
 
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: session.user.email!,
-          password: oldPassword,
-        });
-
-        if (signInError) {
-          setStatusMessage({ type: "error", text: "Current password is incorrect." });
-          setLoading(false);
-          return;
-        }
-
-        const { error: updatePasswordError } = await supabase.auth.updateUser({
-          password: newPassword,
-        });
-
-        if (updatePasswordError) throw updatePasswordError;
-
-        setOldPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-        setStatusMessage({ type: "success", text: "Password updated successfully!" });
-        setLoading(false);
-        return;
-      }
-
-      if (activeTab === "profile") {
-        // FIX: Removed 'phone' from the upsert query.
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .upsert({
-            id: session.user.id,
-            full_name: fullName,
-            location: location,
-            country: country,
-            bio: bio,
-            portfolio_url: portfolioUrl,
-            updated_at: new Date().toISOString(),
-          });
-
-        if (profileError) throw profileError;
-
-        setStatusMessage({ type: "success", text: "Profile details updated successfully!" });
-      } else {
-        setStatusMessage({ type: "success", text: "Preferences saved successfully!" });
-      }
-
+      if (error) throw error;
+      setStatusMessage({ type: "success", text: "Details saved successfully." });
+      setOpenSection(null); 
     } catch (err: any) {
-      console.error(err);
-      setStatusMessage({ type: "error", text: err.message || "An error occurred while saving." });
+      setStatusMessage({ type: "error", text: err.message || "An error occurred." });
     } finally {
       setLoading(false);
     }
   };
 
+  // --- SKELETON LOADER ---
   if (fetchingUser) {
     return (
-      <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 p-8 animate-pulse flex items-center justify-center">
-        <p className="text-slate-500 dark:text-slate-400 font-medium">Loading settings...</p>
+      <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8 animate-pulse">
+        <div className="mb-8 space-y-3">
+          <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 rounded" />
+          <div className="h-4 w-64 bg-slate-200 dark:bg-slate-800 rounded" />
+        </div>
+        
+        <div className="space-y-6">
+          {/* Profile Card Skeleton */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-slate-200 dark:bg-slate-800" />
+              <div className="space-y-2">
+                <div className="h-5 w-32 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="h-4 w-48 bg-slate-200 dark:bg-slate-800 rounded" />
+              </div>
+            </div>
+            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+          </div>
+          {/* Bottom Card Skeleton */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
+            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }
 
+  const initials = fullName ? fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "U";
+
   return (
-    <div className={`min-h-screen transition-colors duration-200 ${darkMode ? "bg-slate-900 text-slate-100" : "bg-[#f7f9fc] text-slate-900"}`}>
-      
-      {/* Top Header Navigation */}
-      <header className={`sticky top-0 z-20 flex h-16 items-center justify-between border-b px-6 lg:px-12 transition-colors ${darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => router.push("/dashboard")}
-            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <span className="font-bold text-lg">Account Settings</span>
-        </div>
-        
-        <button
-          onClick={() => router.push("/dashboard")}
-          className="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition cursor-pointer"
-        >
-          Return to Dashboard
-        </button>
-      </header>
+    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mb-8">
+        <h1 className="text-2xl font-extrabold text-slate-950 dark:text-white sm:text-3xl">Settings</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Manage your account and preferences.</p>
+      </div>
 
-      <main className="max-w-4xl mx-auto px-4 py-10">
-        
-        <div className="mb-8">
-          <h1 className="text-2xl font-extrabold sm:text-3xl">Settings & Preferences</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Manage your public profile details, account credentials, notifications, and app theme.
-          </p>
+      {statusMessage && (
+        <div className={`mb-6 p-4 rounded-xl text-sm font-bold border ${
+          statusMessage.type === "success" 
+            ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
+            : "bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300"
+        }`}>
+          {statusMessage.text}
         </div>
+      )}
 
-        {statusMessage && (
-          <div className={`mb-6 p-4 rounded-xl text-sm font-medium border flex items-center justify-between ${
-            statusMessage.type === "success" 
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
-              : "bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300"
-          }`}>
-            <span>{statusMessage.text}</span>
-            <button onClick={() => setStatusMessage(null)} className="text-xs underline font-semibold ml-2">Dismiss</button>
+      <div className="space-y-6">
+        
+        {/* PROFILE CARD */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
+          <div className="flex items-center gap-4 p-5 border-b border-slate-100 dark:border-slate-800">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-extrabold">
+              {initials}
+            </div>
+            <div>
+              <p className="font-extrabold text-slate-900 dark:text-white">{fullName || "Your Name"}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{email}</p>
+            </div>
           </div>
-        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          
-          <nav className="flex md:flex-col space-x-2 md:space-x-0 md:space-y-1 overflow-x-auto pb-2 md:pb-0">
-            {[
-              { id: "profile", label: "Profile" },
-              { id: "account", label: "Account" },
-              { id: "notifications", label: "Notifications" },
-              { id: "appearance", label: "Appearance" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id as any);
-                  setStatusMessage(null);
-                }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  activeTab === tab.id
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800"
-                }`}
-              >
-                <span>{tab.label}</span>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            
+            {/* Personal Details */}
+            <div>
+              <button onClick={() => setOpenSection(openSection === "personal" ? null : "personal")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                  <Icon name="profile" size={18} /> Personal details
+                </div>
+                <span className={`transition-transform duration-200 ${openSection === "personal" ? "rotate-90" : ""}`}>
+                  <Icon name="chevron" size={16} />
+                </span>
               </button>
-            ))}
-          </nav>
-
-          <div className={`md:col-span-3 rounded-2xl border p-6 sm:p-8 shadow-sm transition-colors ${darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
-            <form onSubmit={handleSave} className="space-y-6">
-
-              {activeTab === "profile" && (
-                <div className="space-y-5">
-                  <h2 className="text-lg font-bold">Public Profile</h2>
-                  {/* FIX: Added dark:text-white so the text is visible when typing in dark mode */}
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 transition"
-                    placeholder="Your full name"
-                  />
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 transition"
-                    placeholder="City / Location"
-                  />
-                </div>
-              )}
-
-              {activeTab === "account" && (
-                <div className="space-y-5">
-                  <h2 className="text-lg font-bold">Account Security</h2>
-                  
-                  <div className="pt-4 space-y-3 border-t border-slate-100 dark:border-slate-700">
-                    <a
-                      href="mailto:support@vouch.app"
-                      className="block w-full py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-750 transition"
-                    >
-                      Contact Support (support@vouch.app)
-                    </a>
-
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="w-full py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition shadow-sm"
-                    >
-                      Log Out
+              {openSection === "personal" && (
+                <div className="p-5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800">
+                  <form onSubmit={handleSave} className="space-y-4">
+                    <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full Name" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City / Location" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+                    <button type="submit" disabled={loading} className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition">
+                      {loading ? "Saving..." : "Save Details"}
                     </button>
-                  </div>
+                  </form>
                 </div>
               )}
+            </div>
 
-              {activeTab === "appearance" && (
-                <div className="space-y-5">
-                  <h2 className="text-lg font-bold">Appearance Settings</h2>
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                    <span>Dark Mode</span>
-                    <button
-                      type="button"
-                      onClick={() => setDarkMode(!darkMode)}
-                      className={`relative inline-flex h-6 w-11 rounded-full transition-colors ${darkMode ? "bg-blue-600" : "bg-slate-300"}`}
-                    >
-                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${darkMode ? "translate-x-5" : "translate-x-0"}`} />
-                    </button>
-                  </div>
+            {/* Notifications */}
+            <div>
+              <button onClick={() => setOpenSection(openSection === "notifications" ? null : "notifications")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                  <Icon name="bell" size={18} /> Notifications
+                </div>
+                <span className={`transition-transform duration-200 ${openSection === "notifications" ? "rotate-90" : ""}`}>
+                  <Icon name="chevron" size={16} />
+                </span>
+              </button>
+              {openSection === "notifications" && (
+                <div className="p-5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-500 dark:text-slate-400">
+                  Notification preferences coming soon.
                 </div>
               )}
+            </div>
 
-              <div className="pt-6 border-t border-slate-100 dark:border-slate-700 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition"
-                >
-                  {loading ? "Saving..." : "Save Settings"}
-                </button>
-              </div>
+            {/* Appearance */}
+            <div>
+              <button onClick={() => setOpenSection(openSection === "appearance" ? null : "appearance")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                  <Icon name="settings" size={18} /> Appearance
+                </div>
+                <span className={`transition-transform duration-200 ${openSection === "appearance" ? "rotate-90" : ""}`}>
+                  <Icon name="chevron" size={16} />
+                </span>
+              </button>
+              {openSection === "appearance" && (
+                <div className="p-5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Dark Mode</span>
+                  <button type="button" onClick={toggleDarkMode} className={`relative inline-flex h-6 w-11 rounded-full transition-colors ${isDarkMode ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"}`}>
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${isDarkMode ? "translate-x-5" : "translate-x-0.5"} mt-0.5`} />
+                  </button>
+                </div>
+              )}
+            </div>
 
-            </form>
+            {/* Privacy & Security */}
+            <div>
+              <button onClick={() => setOpenSection(openSection === "privacy" ? null : "privacy")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                  <Icon name="lock" size={18} /> Privacy & security
+                </div>
+                <span className={`transition-transform duration-200 ${openSection === "privacy" ? "rotate-90" : ""}`}>
+                  <Icon name="chevron" size={16} />
+                </span>
+              </button>
+              {openSection === "privacy" && (
+                <div className="p-5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-500 dark:text-slate-400">
+                  Your data is securely stored. We do not share your personal details with employers without your permission.
+                </div>
+              )}
+            </div>
           </div>
-
         </div>
-      </main>
+
+        {/* SUPPORT & ABOUT CARD */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm divide-y divide-slate-100 dark:divide-slate-800">
+          <a href="mailto:support@vouch.app" className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+            <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+              <Icon name="arrow" size={18} /> Help centre
+            </div>
+            <span className="transition-transform duration-200">
+              <Icon name="chevron" size={16} />
+            </span>
+          </a>
+          
+          {/* About Vouch */}
+          <div>
+            <button onClick={() => setOpenSection(openSection === "about" ? null : "about")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+              <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                <Icon name="briefcase" size={18} /> About Vouch
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-400">v0.9.0</span>
+                <span className={`transition-transform duration-200 ${openSection === "about" ? "rotate-90" : ""}`}>
+                  <Icon name="chevron" size={16} />
+                </span>
+              </div>
+            </button>
+            {openSection === "about" && (
+              <div className="p-5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-500 dark:text-slate-400">
+                <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">Vouch v0.9.0 (Hackathon Beta)</p>
+                <p>Empowering informal work through verified skills. Built for opportunity in Southern Africa.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* LOGOUT */}
+        <button onClick={handleLogout} className="w-full py-4 text-center text-sm font-bold text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors shadow-sm">
+          Log out
+        </button>
+
+        <p className="text-center text-xs font-semibold text-slate-400 dark:text-slate-600 mt-8">
+          Empowering informal work through verified skills.
+        </p>
+      </div>
     </div>
   );
 }
