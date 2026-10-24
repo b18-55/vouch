@@ -18,7 +18,7 @@ export default function SettingsPage() {
   // Profile Form States
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  // FIX: Removed 'phone' state because the column doesn't exist in the database yet.
   const [location, setLocation] = useState("");
   const [country, setCountry] = useState("South Africa");
   const [bio, setBio] = useState("");
@@ -57,15 +57,15 @@ export default function SettingsPage() {
 
         setEmail(session.user.email || "");
 
+        // FIX: Removed 'phone' from the select query to prevent database errors.
         const { data: profile, error } = await supabase
           .from("profiles")
-          .select("full_name, phone, location, country, bio, portfolio_url")
+          .select("full_name, location, country, bio, portfolio_url")
           .eq("id", session.user.id)
           .single();
 
         if (!error && profile) {
           setFullName(profile.full_name || "");
-          setPhone(profile.phone || "");
           setLocation(profile.location || "");
           setCountry(profile.country || "South Africa");
           setBio(profile.bio || "");
@@ -95,7 +95,7 @@ export default function SettingsPage() {
   }, [darkMode]);
 
   // ==========================================
-  // 4. LOG OUT HANDLER (Person 4 Requirement)
+  // 4. LOG OUT HANDLER
   // ==========================================
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -123,7 +123,6 @@ export default function SettingsPage() {
           setLoading(false);
           return;
         }
-
         if (newPassword !== confirmPassword) {
           setStatusMessage({ type: "error", text: "New password and confirmation do not match." });
           setLoading(false);
@@ -156,12 +155,12 @@ export default function SettingsPage() {
       }
 
       if (activeTab === "profile") {
+        // FIX: Removed 'phone' from the upsert query.
         const { error: profileError } = await supabase
           .from("profiles")
           .upsert({
             id: session.user.id,
             full_name: fullName,
-            phone: phone,
             location: location,
             country: country,
             bio: bio,
@@ -269,12 +268,20 @@ export default function SettingsPage() {
               {activeTab === "profile" && (
                 <div className="space-y-5">
                   <h2 className="text-lg font-bold">Public Profile</h2>
+                  {/* FIX: Added dark:text-white so the text is visible when typing in dark mode */}
                   <input
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 text-sm font-medium"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 transition"
                     placeholder="Your full name"
+                  />
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    placeholder="City / Location"
                   />
                 </div>
               )}
@@ -283,9 +290,8 @@ export default function SettingsPage() {
                 <div className="space-y-5">
                   <h2 className="text-lg font-bold">Account Security</h2>
                   
-                  {/* --- CONTACT SUPPORT & LOG OUT BUTTONS (Person 4 Checklist) --- */}
                   <div className="pt-4 space-y-3 border-t border-slate-100 dark:border-slate-700">
-                                        <a
+                    <a
                       href="mailto:support@vouch.app"
                       className="block w-full py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-750 transition"
                     >

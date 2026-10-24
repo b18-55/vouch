@@ -8,15 +8,11 @@ import type { ReactNode } from "react";
 // ==========================================
 // 1. ICON SYSTEM
 // ==========================================
-// Instead of importing heavy icon libraries (like FontAwesome), your teammate 
-// created a custom, lightweight SVG icon system. 
-
 export type IconName =
   | "arrow" | "back" | "bell" | "briefcase" | "check" | "chevron"
   | "clock" | "close" | "edit" | "home" | "location" | "lock"
   | "mail" | "plus" | "profile" | "search" | "settings" | "spark" | "wallet";
 
-// This maps a string name to the actual SVG path data.
 const iconPaths: Record<IconName, ReactNode> = {
   arrow: <path d="M5 12h14m-5-5 5 5-5 5" />,
   back: <path d="m15 18-6-6 6-6" />,
@@ -39,8 +35,6 @@ const iconPaths: Record<IconName, ReactNode> = {
   wallet: <><path d="M4 6h14a2 2 0 0 1 2 2v11H4a2 2 0 0 1-2-2V6a3 3 0 0 1 3-3h12" /><path d="M16 11h6v5h-6a2.5 2.5 0 0 1 0-5Z" /></>,
 };
 
-// The actual Icon component. It takes a name (like "arrow") and a size, 
-// and renders the SVG.
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   return (
     <svg aria-hidden="true" className="shrink-0" fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24" width={size}>
@@ -64,13 +58,13 @@ type ButtonProps = {
 };
 
 export function Button({ children, className = "", icon, kind = "primary", onClick, type = "button", href, disabled = false }: ButtonProps) {
-  // These are the Tailwind styles for the 3 different button types
+  // FIX: Added dark mode classes to secondary and ghost buttons
   const styles =
     kind === "primary"
       ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
       : kind === "secondary"
-        ? "border border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50"
-        : "text-slate-600 hover:bg-slate-100";
+        ? "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+        : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800";
         
   const classes = `inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 ${styles} ${className}`;
   
@@ -81,10 +75,6 @@ export function Button({ children, className = "", icon, kind = "primary", onCli
     </>
   );
 
-  // THE MAGIC NEXT.JS TRICK:
-  // If the button has an 'href' (like href="/login"), it renders a Next.js <Link>.
-  // This gives us fast client-side navigation. If there is no href, it renders 
-  // a normal HTML <button> for form submissions and clicks.
   if (href) {
     return (
       <Link className={classes} href={href}>
@@ -103,25 +93,32 @@ export function Button({ children, className = "", icon, kind = "primary", onCli
 // ==========================================
 // 3. PAGE TITLE COMPONENT
 // ==========================================
-// A reusable header for pages (like "My Hustle" or "Find Opportunities").
-// It handles the small blue eyebrow text, the big title, and optional action buttons on the right.
 export function PageTitle({ eyebrow, title, text, action }: { eyebrow?: string; title: string; text?: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        {eyebrow && <p className="mb-1 text-xs font-extrabold uppercase tracking-widest text-blue-600">{eyebrow}</p>}
-        <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
-        {text && <p className="mt-1.5 text-sm text-slate-500">{text}</p>}
+        {eyebrow && (
+          <p className="mb-1 text-xs font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400">
+            {eyebrow}
+          </p>
+        )}
+        <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+          {title}
+        </h1>
+        {text && (
+          <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+            {text}
+          </p>
+        )}
       </div>
       {action}
     </div>
-  );
+  )
 }
 
 // ==========================================
 // 4. FORM FIELD COMPONENT
 // ==========================================
-// A reusable input field with a label and an optional icon on the left.
 type FieldProps = {
   icon?: IconName;
   label: string;
@@ -136,17 +133,17 @@ type FieldProps = {
 export function Field({ icon, label, placeholder, type = "text", value, onChange, name, maxLength }: FieldProps) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-bold text-slate-800">{label}</span>
+      {/* FIX: Added dark:text-slate-200 to the label */}
+      <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">{label}</span>
       <span className="relative block">
-        {/* If an icon is provided, it renders absolutely positioned on the left */}
         {icon && (
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
             <Icon name={icon} size={18} />
           </span>
         )}
+        {/* FIX: Added dark mode background, text, and border colors to the input */}
         <input
-          // If there is an icon, we add 'pl-11' (padding-left) so the text doesn't overlap the icon
-          className={`h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 ${icon ? "pl-11" : ""}`}
+          className={`h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm text-slate-900 dark:text-white outline-none transition placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950/50 ${icon ? "pl-11" : ""}`}
           maxLength={maxLength}
           name={name}
           onChange={onChange ? (e) => onChange(e.target.value) : undefined}

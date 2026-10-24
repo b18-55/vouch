@@ -28,6 +28,37 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* ==========================================
+   GLOBAL FORM CONTROLS (UX/Dark Mode Fix)
+   ========================================== */
+/* Default light mode styles for inputs */
+input, textarea, select {
+  color: #0f172a; /* slate-900 text */
+  background-color: #ffffff;
+}
+
+/* Force dark mode styles globally so we don't have to add dark: classes to every form */
+.dark input, 
+.dark textarea, 
+.dark select {
+  color: #f8fafc !important; /* slate-50 text */
+  background-color: #1e293b !important; /* slate-800 background */
+  border-color: #334155 !important; /* slate-700 border */
+}
+
+/* Ensure placeholders are readable in both modes */
+::placeholder {
+  color: #94a3b8; /* slate-400 */
+  opacity: 1;
+}
+
+.dark ::placeholder {
+  color: #64748b; /* slate-500 */
+}
+
+/* ==========================================
+   ANIMATIONS
+   ========================================== */
 @keyframes slideUp {
   from {
     opacity: 0;
