@@ -146,51 +146,59 @@ export default function TasksPage() {
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Try a different role, skill or filter.</p>
         </div>
       ) : (
-        <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredTasks.map((task) => {
-            const isMatch = task.skills_required?.some((skill) => userSkills.includes(skill))
+        <>
+          {/* FIX (Task 6): Anti-scam safety banner — shows only when there are results */}
+          <div className="mt-4 mb-4 flex items-center gap-2 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm font-semibold text-amber-800 dark:text-amber-300">
+            <Icon name="lock" size={18} />
+            Vouch is free. Never pay anyone to apply for a gig.
+          </div>
 
-            return (
-              <button
-                key={task.id}
-                onClick={() => router.push(`/tasks/${task.id}`)}
-                className="group rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 dark:hover:border-blue-600 hover:shadow-lg"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400">
-                    <Icon name="briefcase" />
-                  </span>
+          <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredTasks.map((task) => {
+              const isMatch = task.skills_required?.some((skill) => userSkills.includes(skill))
 
-                  <div className="flex items-center gap-2">
-                    {isMatch && (
-                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-extrabold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
-                        Good match
+              return (
+                <button
+                  key={task.id}
+                  onClick={() => router.push(`/tasks/${task.id}`)}
+                  className="group rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 dark:hover:border-blue-600 hover:shadow-lg"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400">
+                      <Icon name="briefcase" />
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      {isMatch && (
+                        <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-extrabold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+                          Good match
+                        </span>
+                      )}
+                      <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900">
+                        92% match
                       </span>
-                    )}
-                    <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900">
-                      92% match
+                    </div>
+                  </div>
+
+                  <h3 className="mt-5 text-base font-extrabold text-slate-950 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
+                    {task.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.employer_name}</p>
+                  <div className="my-4 h-px bg-slate-100 dark:bg-slate-700" />
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100">
+                      R{task.pay_amount.toLocaleString()}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                      <Icon name="clock" size={16} />
+                      {task.duration_days} {task.duration_days === 1 ? 'day' : 'days'}
                     </span>
                   </div>
-                </div>
-
-                <h3 className="mt-5 text-base font-extrabold text-slate-950 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
-                  {task.title}
-                </h3>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.employer_name}</p>
-                <div className="my-4 h-px bg-slate-100 dark:bg-slate-700" />
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100">
-                    R{task.pay_amount.toLocaleString()}
-                  </span>
-                  <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-                    <Icon name="clock" size={16} />
-                    {task.duration_days} {task.duration_days === 1 ? 'day' : 'days'}
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+                </button>
+              )
+            })}
+          </div>
+        </>
       )}
     </div>
   )

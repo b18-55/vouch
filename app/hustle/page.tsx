@@ -68,7 +68,10 @@ export default function HustlePage() {
     setError('')
 
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    if (!session) {
+      setSaving(false)
+      return
+    }
 
     // We use .select().single() so Supabase returns the newly created row.
     // We need the new row's ID to redirect the user to /review?id=<the id>.
@@ -94,7 +97,14 @@ export default function HustlePage() {
       // Redirect to the review page, passing the new experience's ID in the URL.
       // The review page reads this ID, calls the AI to extract skills, and
       // saves those skills with `experience_id` pointing back to this experience.
+      
+      // TEAMMATE FIX: Reset saving state before navigating so the button never hangs
+      // if the /review route change is slow or blocked.
+      setSaving(false)
+      
       router.push(`/review?id=${data.id}`)
+    } else {
+      setSaving(false)
     }
   }
 

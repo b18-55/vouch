@@ -6,7 +6,6 @@
 // --- IMPORTS ---
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Button, Icon } from '@/components/ui'
 
@@ -19,7 +18,7 @@ type Profile = {
   bio: string | null
   trust_score: number | null
   // We added public_slug here so TypeScript knows it exists. 
-  // It is the unique ID we use to generate the shareable URL for Task 4.
+  // It is the unique ID we use to generate the shareable URL.
   public_slug: string | null 
 }
 
@@ -48,7 +47,7 @@ export default function ProfilePage() {
   const [experiences, setExperiences] = useState<Experience[]>([])
   const [loading, setLoading] = useState(true)
 
-  // State for the Edit/Delete features (Your Teammate's Code)
+  // State for the Edit/Delete features
   const [deletingId, setDeletingId] = useState<string | null>(null) // Tracks which item is being deleted
   const [editingExp, setEditingExp] = useState<Experience | null>(null) // Holds the experience being edited
   const [editTitle, setEditTitle] = useState('') // Holds the edited title in the modal
@@ -72,7 +71,7 @@ export default function ProfilePage() {
       const [profileRes, skillsRes, expRes] = await Promise.all([
         
         // 1. Get the user's basic info.
-        // We use .select('*') so it automatically grabs the public_slug we added for Task 4.
+        // We use .select('*') so it automatically grabs the public_slug.
         supabase.from('profiles').select('*').eq('id', session.user.id).single(),
         
         // 2. Fetch the 'id' along with the 'name' so React has a unique key for the map function.
@@ -95,7 +94,7 @@ export default function ProfilePage() {
   }, [router]) // Re-run if the router changes.
 
   // ==========================================
-  // 3. SHARE PROFILE LOGIC (Your Task 4)
+  // 3. SHARE PROFILE LOGIC
   // ==========================================
   const shareProfile = async () => {
     // 1. Get the unique slug from the profile state.
@@ -113,8 +112,6 @@ export default function ProfilePage() {
     }
 
     // 4. Use the native share sheet on phones.
-    // If the user is on an iPhone or Android, 'navigator.share' exists. 
-    // It opens the phone's native menu, letting them pick WhatsApp, SMS, Email, etc.
     if (navigator.share) {
       try { 
         await navigator.share(shareData) 
@@ -123,15 +120,13 @@ export default function ProfilePage() {
         console.log('Share cancelled') 
       }
     } else {
-      // 5. Fallback for laptops/desktops:
-      // If they are on a computer, 'navigator.share' might not exist. 
-      // We open a new tab directly to WhatsApp Web with the message pre-filled.
+      // 5. Fallback for laptops/desktops: open WhatsApp Web
       window.open(`https://wa.me/?text=${encodeURIComponent(shareData.text + ' ' + url)}`, '_blank')
     }
   }
 
   // ==========================================
-  // 4. EDIT & DELETE EXPERIENCE LOGIC (Teammate's Code)
+  // 4. EDIT & DELETE EXPERIENCE LOGIC
   // ==========================================
   const handleDeleteExperience = async (id: string) => {
     // 1. Ask for confirmation before doing anything destructive
@@ -153,36 +148,18 @@ export default function ProfilePage() {
       // 3. BELT-AND-SUSPENDERS: Also delete the linked skills.
       //
       // Why this explicit delete exists when we have ON DELETE CASCADE:
-      //
-      // - Cascade SHOULD handle this automatically. The skills table has a
-      //   foreign key to experiences(id) with ON DELETE CASCADE, so when an
-      //   experience is deleted, all linked skills should disappear too.
-      //
-      // - But cascade ONLY fires if the foreign key constraint is actually
-      //   in place. If the constraint is missing (e.g. the SQL migration
-      //   didn't run on this environment) or misconfigured (ON DELETE NO ACTION
-      //   instead of CASCADE), skills stay behind as orphans — they have an
-      //   experience_id that points to nothing.
-      //
-      // - We hit exactly this bug on the live Vercel deployment: deleting
-      //   an experience left its skills on this profile page.
-      //
-      // - Deleting here explicitly guarantees cleanup regardless of the
-      //   database constraint state. If cascade IS working, this call
-      //   matches 0 rows (the skills were already deleted) and does nothing.
-      //   If cascade is NOT working, this call removes them.
-      //
-      // - This is intentionally the same logic as handleDelete in
-      //   app/hustle/page.tsx. Both places that can delete an experience
-      //   need the same safety net. If you find yourself removing one,
-      //   remove both — and understand the cascade caveat above first.
+      // - Cascade SHOULD handle this automatically, but ONLY if the foreign 
+      //   key constraint is perfectly configured on the database.
+      // - If misconfigured, skills stay behind as orphans.
+      // - We hit exactly this bug live. Deleting here guarantees cleanup 
+      //   regardless of the database constraint state. If cascade IS working, 
+      //   this call matches 0 rows and does nothing.
       await supabase
         .from('skills')
         .delete()
         .eq('experience_id', id)
 
       // 4. Update the local UI state so the card disappears instantly
-      //    without needing a page refresh
       setExperiences((prev) => prev.filter((exp) => exp.id !== id))
 
     } catch (err: any) {
@@ -237,15 +214,12 @@ export default function ProfilePage() {
   }
 
   // ==========================================
-  // 5. SKELETON LOADER (Your Task)
+  // 5. SKELETON LOADER
   // ==========================================
   // We use 'animate-pulse' to make the grey blocks flash.
-  // We added 'dark:bg-slate-950' and 'dark:bg-slate-800' so the skeleton 
-  // matches the dark mode setting of the phone.
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 animate-pulse transition-colors duration-300">
-        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-5 lg:px-8" />
         <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
           <div className="overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             <div className="h-28 bg-slate-200 dark:bg-slate-800" />
@@ -279,28 +253,19 @@ export default function ProfilePage() {
     : 'U'
 
   // Deduplicates skills just in case the AI generated the same skill twice.
-  // It creates a Map based on the skill name, then extracts the unique values.
   const uniqueSkills = Array.from(
     new Map(skills.map(skill => [skill.name, skill])).values()
   )
 
   // ==========================================
-  // 6. RENDER THE UI (Dark Mode Applied)
+  // 6. RENDER THE UI
   // ==========================================
-  // Notice the 'dark:bg-slate-950' on the main container and 'dark:text-white' 
-  // on the headings. Tailwind automatically switches these colors based on the 
-  // user's phone settings (or the manual toggle in the Settings page).
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 transition-colors duration-300">
       
-      {/* --- TOP NAVIGATION BAR --- */}
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 lg:px-8 transition-colors duration-300">
-        <Link href="/dashboard" className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white">
-          ← Back to Dashboard
-        </Link>
-      </header>
+      {/* Note from Teammate: Removed the local header containing "Back to Dashboard" 
+          to rely on the global layout wrapper instead. */}
 
-      {/* --- MAIN CONTENT CONTAINER --- */}
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
         
         {/* PROFILE HEADER CARD */}
@@ -328,13 +293,12 @@ export default function ProfilePage() {
                 </div>
               </div>
               
-              {/* ACTION BUTTONS: Edit + Share (Your Task 4 + Teammate's Edit link) */}
+              {/* ACTION BUTTONS: Edit + Share */}
               <div className="flex gap-2">
                 <Button kind="secondary" onClick={() => router.push('/profile/edit')}>
                   <Icon name="edit" size={17} />
                   Edit
                 </Button>
-                {/* THE NEW SHARE BUTTON */}
                 <Button kind="primary" onClick={shareProfile}>
                   <Icon name="arrow" size={17} />
                   Share
@@ -379,7 +343,7 @@ export default function ProfilePage() {
               </div>
             </section>
 
-            {/* EXPERIENCE TIMELINE SECTION (With Edit/Delete) */}
+            {/* EXPERIENCE TIMELINE SECTION */}
             <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 transition-colors duration-300">
               <h2 className="text-lg font-extrabold text-slate-950 dark:text-white">Experience</h2>
               
@@ -401,7 +365,7 @@ export default function ProfilePage() {
                         </p>
                       </div>
 
-                      {/* EDIT / DELETE BUTTONS (From Teammate) */}
+                      {/* EDIT / DELETE BUTTONS */}
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
@@ -460,7 +424,7 @@ export default function ProfilePage() {
       </main>
 
       {/* ==========================================
-          7. EDIT EXPERIENCE MODAL (From Teammate)
+          7. EDIT EXPERIENCE MODAL
           ========================================== */}
       {editingExp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
