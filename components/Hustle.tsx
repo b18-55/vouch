@@ -45,7 +45,15 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
 
-  const canSave = title.trim().length > 0 && description.trim().length > 0 && !saving;
+  // ==========================================
+  // BUG FIX: Validation
+  // ==========================================
+  // The "Save" button is disabled if the title is empty, the description is 
+  // too short, or if it is currently saving to the database.
+  // We changed the description limit from > 0 to > 20. 
+  // Why? Because if a user types only 2 words, the AI won't have enough context 
+  // to extract meaningful skills, and it will fail.
+  const canSave = title.trim().length > 0 && description.trim().length > 20 && !saving;
 
   // ==========================================
   // VIEW 1: THE FORM
@@ -88,8 +96,11 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
                 placeholder="I helped customers find products, managed the till and counted stock at the end of each day."
                 value={description}
               />
+              
+              {/* Live character counter and helper text */}
               <span className="mt-2 flex justify-between text-xs text-slate-400 dark:text-slate-500">
-                <span>Be specific. This helps us find the right skills.</span>
+                {/* We explicitly tell the user they need 20+ characters */}
+                <span>Please add at least 20 characters so our AI can find your skills.</span>
                 <span>{description.length} / {MAX.toLocaleString("en-ZA")}</span>
               </span>
             </label>
