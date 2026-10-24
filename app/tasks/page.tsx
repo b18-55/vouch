@@ -1,9 +1,14 @@
 'use client'
+// Client component: uses React hooks (useState, useEffect) and reads user clicks.
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Icon, PageTitle } from '@/components/ui'
 
+// ==========================================
+// 1. TYPESCRIPT TYPES
+// ==========================================
 type Task = {
   id: string
   title: string
@@ -16,25 +21,36 @@ type Task = {
 }
 
 export default function TasksPage() {
+  
+  // --- STATE MANAGEMENT ---
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // We store the user's skills here so we can filter the tasks later.
   const [userSkills, setUserSkills] = useState<string[]>([])
 
+  // Filter states for the UI dropdowns
   const [searchQuery, setSearchQuery] = useState('')
   const [locationFilter, setLocationFilter] = useState('Any location')
   const [payFilter, setPayFilter] = useState('Any pay')
 
   const router = useRouter()
 
+  // ==========================================
+  // 2. FETCH DATA ON LOAD
+  // ==========================================
   useEffect(() => {
     const loadTasks = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
+        
+        // Protect the route: if not logged in, kick them to /login
         if (!session) {
           router.push('/login')
           return
         }
 
+        // 1. Fetch all open tasks
         const { data, error } = await supabase
           .from('micro_tasks')
           .select('*')
@@ -43,12 +59,14 @@ export default function TasksPage() {
         if (error) throw error
         if (data) setTasks(data)
 
+        // 2. Fetch the user's verified skills
         const { data: skillsData } = await supabase
           .from('skills')
           .select('name')
           .eq('profile_id', session.user.id)
 
         if (skillsData) {
+          // We map the objects to just an array of strings (e.g. ["Cooking", "Cleaning"])
           setUserSkills(skillsData.map((s) => s.name))
         }
       } catch (err) {
@@ -61,20 +79,51 @@ export default function TasksPage() {
     loadTasks()
   }, [router])
 
+  // ==========================================
+  // 3. FILTERING LOGIC
+  // ==========================================
+  // This function runs every time the user types in the search bar, changes a 
+  // dropdown, or when the initial data loads. It returns only the tasks that 
+  // pass ALL the checks below.
   const filteredTasks = tasks.filter((task) => {
+    
+    // Check 1: Search text
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase())
 
+    // Check 2: Location dropdown
     const matchesLocation =
       locationFilter === 'Any location' ||
       (task.location && task.location.toLowerCase().includes(locationFilter.toLowerCase()))
 
+    // Check 3: Pay dropdown
     let matchesPay = true
     if (payFilter === 'R1,000+') matchesPay = task.pay_amount >= 1000
     if (payFilter === 'R1,500+') matchesPay = task.pay_amount >= 1500
 
-    return matchesSearch && matchesLocation && matchesPay
+    // Check 4: SKILL MATCHING (The new fix)
+    let matchesSkills = true
+    
+    // Safety net: If the user has NO skills yet, we show all tasks. 
+    // We don't want a new user to see an empty page and think the app is broken.
+    if (userSkills.length > 0) {
+      const required = task.skills_required || []
+      
+      // We lowercase both sides so "Cooking" matches "cooking".
+      const lowerUserSkills = userSkills.map(s => s.toLowerCase())
+      
+      // Does the task require at least one skill that the user has?
+      matchesSkills = required.some((reqSkill) => 
+        lowerUserSkills.includes(reqSkill.toLowerCase())
+      )
+    }
+
+    // The task only shows up if ALL 4 checks are true.
+    return matchesSearch && matchesLocation && matchesPay && matchesSkills
   })
 
+  // ==========================================
+  // 4. LOADING SKELETON
+  // ==========================================
   if (loading) {
     return (
       <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8 animate-pulse">
@@ -93,11 +142,17 @@ export default function TasksPage() {
     )
   }
 
+  // ==========================================
+  // 5. RENDER THE UI
+  // ==========================================
   return (
     <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
       <PageTitle title="Find opportunities" text="Short, paid work matched to what you can do." />
 
+      {/* FILTER BAR */}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        
+        {/* Search Input */}
         <label className="relative flex-1">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
             <Icon name="search" size={19} />
@@ -110,6 +165,7 @@ export default function TasksPage() {
           />
         </label>
 
+        {/* Location Dropdown */}
         <select
           className="h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none cursor-pointer transition"
           value={locationFilter}
@@ -122,6 +178,7 @@ export default function TasksPage() {
           <option className="dark:bg-slate-800">Johannesburg</option>
         </select>
 
+        {/* Pay Dropdown */}
         <select
           className="h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none cursor-pointer transition"
           value={payFilter}
@@ -137,6 +194,7 @@ export default function TasksPage() {
         {filteredTasks.length} open opportunities
       </p>
 
+      {/* EMPTY STATE */}
       {filteredTasks.length === 0 ? (
         <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-12 text-center transition-colors duration-200">
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-300">
@@ -147,14 +205,19 @@ export default function TasksPage() {
         </div>
       ) : (
         <>
-          {/* FIX (Task 6): Anti-scam safety banner — shows only when there are results */}
+          {/* ANTI-SCAM BANNER */}
           <div className="mt-4 mb-4 flex items-center gap-2 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm font-semibold text-amber-800 dark:text-amber-300">
             <Icon name="lock" size={18} />
             Vouch is free. Never pay anyone to apply for a gig.
           </div>
 
+          {/* TASK GRID */}
           <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredTasks.map((task) => {
+              
+              // Check if this specific task matches the user's skills.
+              // (We already filtered out non-matches above, so this is mostly 
+              // true, but we check it again to show the "Good match" badge).
               const isMatch = task.skills_required?.some((skill) => userSkills.includes(skill))
 
               return (
@@ -174,6 +237,9 @@ export default function TasksPage() {
                           Good match
                         </span>
                       )}
+                      
+                      {/* Note for demo: In production, we would calculate this mathematically. 
+                          For the hackathon, it's a visual mock to show the UI. */}
                       <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900">
                         92% match
                       </span>
@@ -184,7 +250,9 @@ export default function TasksPage() {
                     {task.title}
                   </h3>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.employer_name}</p>
+                  
                   <div className="my-4 h-px bg-slate-100 dark:bg-slate-700" />
+                  
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-extrabold text-slate-900 dark:text-slate-100">
                       R{task.pay_amount.toLocaleString()}
