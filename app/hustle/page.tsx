@@ -50,7 +50,10 @@ export default function HustlePage() {
     setError('')
 
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    if (!session) {
+      setSaving(false)
+      return
+    }
 
     const { data, error: dbError } = await supabase
       .from('experiences')
@@ -70,7 +73,12 @@ export default function HustlePage() {
     }
 
     if (data) {
+      // FIX: Reset saving state before navigating so the button never hangs
+      // if the /review route change is slow or blocked.
+      setSaving(false)
       router.push(`/review?id=${data.id}`)
+    } else {
+      setSaving(false)
     }
   }
 

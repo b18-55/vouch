@@ -8,24 +8,22 @@ import { supabase } from '@/lib/supabase'
 import Review, { SuggestedSkill } from '@/components/Review'
 
 function ReviewContent() {
-  // --- URL parsing ---
+  // Extract the experience ID passed from the Hustle page via the URL
   const searchParams = useSearchParams()
   const experienceId = searchParams.get('id')
   const router = useRouter()
 
-  // --- State ---
   const [experienceText, setExperienceText] = useState('')
   const [suggestions, setSuggestions] = useState<SuggestedSkill[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  // Rotating status text shown while the AI is working.
   const [loadingText, setLoadingText] = useState('Analyzing your work records...')
 
   // ==========================================
   // Rotating status messages
   // ==========================================
-  // Runs only while loading is true. Rotates the message every 1.5 s.
+  // Runs only while loading is true. Rotates the message every 1.5 s
+  // to keep the user engaged while the AI processes the request.
   useEffect(() => {
     if (!loading) return
 
@@ -64,6 +62,7 @@ function ReviewContent() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return router.push('/login')
 
+      // 1. Fetch the experience text using the ID from the URL
       const { data } = await supabase
         .from('experiences')
         .select('description')
@@ -73,10 +72,11 @@ function ReviewContent() {
       if (data) {
         setExperienceText(data.description)
 
-        // Fail-safe timeout: abort the request if it takes more than 60 s.
+        // Fail-safe timeout: abort the request if it takes more than 60s.
         timeoutId = setTimeout(() => controller.abort(), 60000)
 
         try {
+          // 2. Send the text to the AI API to extract skills
           const response = await fetch('/api/extract', {
             method: 'POST',
             headers: {
@@ -89,7 +89,6 @@ function ReviewContent() {
           })
 
           clearTimeout(timeoutId)
-
           const aiData = await response.json()
 
           if (aiData.skills && aiData.skills.length > 0) {
@@ -97,7 +96,6 @@ function ReviewContent() {
           }
         } catch (err: unknown) {
           clearTimeout(timeoutId)
-
           if (err instanceof Error) {
             console.error('AI extraction failed:', err.message)
           } else {
@@ -113,7 +111,6 @@ function ReviewContent() {
     loadData()
 
     // Cleanup: cancel the request and timer if the component unmounts
-    // before the fetch finishes.
     return () => {
       clearTimeout(timeoutId)
       controller.abort()
@@ -129,8 +126,12 @@ function ReviewContent() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
+    // Map the selected skill names into database rows.
+    // We MUST include experience_id so the database knows which experience
+    // these skills belong to (enables Cascade Delete later).
     const skillsToInsert = selectedNames.map((name) => ({
       profile_id: session.user.id,
+      experience_id: experienceId, // <--- THE FIX
       name,
       source: 'ai',
       verified: false,
@@ -152,10 +153,9 @@ function ReviewContent() {
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] bg-[#f7f9fc] dark:bg-slate-950 px-4 py-8 md:px-8 select-none">
-
+        
+        {/* Bouncing dots */}
         <div className="flex flex-col items-center justify-center w-full max-w-md mx-auto space-y-8 md:max-w-xl">
-
-          {/* Bouncing dots */}
           <div className="flex items-center justify-center space-x-3 h-12">
             <div className="w-3 h-3 rounded-full bg-blue-600 animate-bounce [animation-delay:-0.3s] md:w-4 md:h-4" />
             <div className="w-3 h-3 rounded-full bg-indigo-500 animate-bounce [animation-delay:-0.15s] md:w-4 md:h-4" />
@@ -177,7 +177,6 @@ function ReviewContent() {
             <div className="h-1.5 flex-1 rounded-full bg-slate-200 dark:bg-slate-700 transition-all duration-300" />
             <div className="h-1.5 flex-1 rounded-full bg-slate-200 dark:bg-slate-700 transition-all duration-300" />
           </div>
-
         </div>
 
         {/* Cancel button */}
@@ -189,7 +188,6 @@ function ReviewContent() {
             Cancel and go back
           </button>
         </div>
-
       </div>
     )
   }
