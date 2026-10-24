@@ -114,7 +114,35 @@ export default function HustlePage() {
   }
 
   // ==========================================
-  // 5. RENDER THE PAGE
+  // 5. EDIT EXPERIENCE HANDLER (Person 2 Task - NEW)
+  // ==========================================
+  // This is called when the user clicks "Save Changes" inside the Edit Modal
+  const handleEdit = async (id: string, newDescription: string) => {
+    setError('')
+
+    try {
+      // Update the description in Supabase
+      const { error: updateError } = await supabase
+        .from('experiences')
+        .update({ description: newDescription })
+        .eq('id', id)
+
+      if (updateError) throw updateError
+
+      // Instantly update the UI without reloading the page
+      setExperiences((prev) => 
+        prev.map((exp) => 
+          exp.id === id ? { ...exp, text: newDescription } : exp
+        )
+      )
+    } catch (err: any) {
+      console.error('Error updating experience:', err)
+      setError(err.message || 'Failed to update experience.')
+    }
+  }
+
+  // ==========================================
+  // 6. RENDER THE PAGE
   // ==========================================
   if (loading) {
     return (
@@ -143,11 +171,12 @@ export default function HustlePage() {
         </button>
       </nav>
 
-      {/* Render Team Member's Hustle Component with onDelete Prop */}
+      {/* Render Team Member's Hustle Component with BOTH onDelete and onEdit props */}
       <Hustle 
         experiences={experiences} 
         onSave={handleSave} 
         onDelete={handleDelete}
+        onEdit={handleEdit} // <-- THIS IS THE NEW PROP WE ADDED
         saving={saving} 
         errorMessage={error} 
       />

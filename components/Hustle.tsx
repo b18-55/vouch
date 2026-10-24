@@ -1,20 +1,18 @@
 "use client";
-// 'use client' is a Next.js directive. It tells Next.js that this component 
-// runs on the browser (Client Component) and not just on the server. 
+// 'use client' is required because we use React state to handle forms and modals.
 
 import { useState } from "react";
-// We import our shared UI pieces from your teammate's ui.tsx file.
 import { Button, Field, Icon, PageTitle } from "./ui";
 
 // ==========================================
 // 1. TYPESCRIPT TYPES
 // ==========================================
 export type ExperienceItem = {
-  id: string;       // The unique ID from the Supabase database
-  title: string;    // e.g. "Maths tutoring"
-  date: string;     // Formatted date string (e.g. "18 October 2026")
-  text: string;     // The description the user typed
-  skills: string[]; // An array of confirmed skills
+  id: string;
+  title: string;
+  date: string; 
+  text: string;
+  skills: string[]; 
 };
 
 export type ExperienceInput = {
@@ -23,13 +21,13 @@ export type ExperienceInput = {
   type: "Informal work" | "Volunteering" | "Side hustle" | "Community work";
 };
 
-// Added onDelete prop here as per Person 4 specifications
 type HustleProps = {
-  experiences: ExperienceItem[];
-  onSave: (input: ExperienceInput) => Promise<void> | void;
-  onDelete?: (id: string) => Promise<void> | void; // Person 4 Delete Action
-  saving?: boolean;
-  errorMessage?: string;
+  experiences: ExperienceItem[]; 
+  onSave: (input: ExperienceInput) => Promise<void> | void; 
+  onDelete?: (id: string) => Promise<void> | void; 
+  onEdit?: (id: string, newDescription: string) => Promise<void> | void; 
+  saving?: boolean; 
+  errorMessage?: string; 
 };
 
 const MAX = 1000;
@@ -37,32 +35,37 @@ const MAX = 1000;
 // ==========================================
 // 2. MAIN COMPONENT
 // ==========================================
-export default function Hustle({ experiences, onSave, onDelete, saving = false, errorMessage }: HustleProps) {
+export default function Hustle({ experiences, onSave, onDelete, onEdit, saving = false, errorMessage }: HustleProps) {
   
   const [form, setForm] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<ExperienceInput["type"]>("Informal work");
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
   const canSave = title.trim().length > 0 && description.trim().length > 0 && !saving;
 
+  // ==========================================
   // VIEW 1: THE FORM
+  // ==========================================
   if (form) {
     return (
       <div className="mx-auto max-w-3xl px-5 py-8 lg:px-8">
-        <button className="mb-6 flex items-center gap-1 text-sm font-bold text-slate-500" onClick={() => setForm(false)} type="button">
+        <button className="mb-6 flex items-center gap-1 text-sm font-bold text-slate-500 dark:text-slate-400" onClick={() => setForm(false)} type="button">
           <Icon name="back" size={18} />
           Back to my hustle
         </button>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-9">
+        <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 sm:p-9 transition-colors">
           <div className="flex items-center gap-4">
-            <span className="icon-tile bg-blue-50 text-blue-600">
+            <span className="icon-tile bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
               <Icon name="spark" />
             </span>
             <div>
-              <h1 className="text-2xl font-extrabold text-slate-950">Log an experience</h1>
-              <p className="mt-1 text-sm text-slate-500">Any work counts—paid, unpaid or helping out.</p>
+              <h1 className="text-2xl font-extrabold text-slate-950 dark:text-white">Log an experience</h1>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Any work counts—paid, unpaid or helping out.</p>
             </div>
           </div>
           
@@ -76,24 +79,26 @@ export default function Hustle({ experiences, onSave, onDelete, saving = false, 
             />
 
             <label className="block">
-              <span className="mb-2 block text-sm font-bold text-slate-800">What did you do?</span>
+              <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">What did you do?</span>
+              {/* FIX: Added dark mode classes to make text visible */}
               <textarea
-                className="min-h-44 w-full resize-none rounded-xl border border-slate-200 p-4 text-sm leading-6 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                className="min-h-44 w-full resize-none rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white p-4 text-sm leading-6 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 transition"
                 maxLength={MAX}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="I helped customers find products, managed the till and counted stock at the end of each day."
                 value={description}
               />
-              <span className="mt-2 flex justify-between text-xs text-slate-400">
+              <span className="mt-2 flex justify-between text-xs text-slate-400 dark:text-slate-500">
                 <span>Be specific. This helps us find the right skills.</span>
                 <span>{description.length} / {MAX.toLocaleString("en-ZA")}</span>
               </span>
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-sm font-bold text-slate-800">Type of experience</span>
+              <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Type of experience</span>
+              {/* FIX: Added dark mode classes to make text visible */}
               <select
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-blue-500"
+                className="h-12 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white px-4 text-sm outline-none focus:border-blue-500 transition"
                 onChange={(e) => setType(e.target.value as ExperienceInput["type"])}
                 value={type}
               >
@@ -105,7 +110,7 @@ export default function Hustle({ experiences, onSave, onDelete, saving = false, 
             </label>
 
             {errorMessage && (
-              <p className="text-sm font-bold text-red-600" role="alert">
+              <p className="text-sm font-bold text-red-600 dark:text-red-400" role="alert">
                 {errorMessage}
               </p>
             )}
@@ -124,7 +129,9 @@ export default function Hustle({ experiences, onSave, onDelete, saving = false, 
     );
   }
 
+  // ==========================================
   // VIEW 2: THE LIST
+  // ==========================================
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
       
@@ -138,14 +145,14 @@ export default function Hustle({ experiences, onSave, onDelete, saving = false, 
         title="My hustle"
       />
       
-      <div className="mt-7 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+      <div className="mt-7 rounded-2xl border border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 p-5 transition-colors">
         <div className="flex gap-3">
-          <span className="mt-0.5 text-blue-600">
+          <span className="mt-0.5 text-blue-600 dark:text-blue-400">
             <Icon name="spark" />
           </span>
           <div>
-            <p className="font-bold text-blue-950">Informal work is real experience</p>
-            <p className="mt-1 text-sm leading-6 text-blue-800">
+            <p className="font-bold text-blue-950 dark:text-blue-100">Informal work is real experience</p>
+            <p className="mt-1 text-sm leading-6 text-blue-800 dark:text-blue-300">
               Tutoring a neighbour, fixing phones or helping in a family shop can all show valuable skills.
             </p>
           </div>
@@ -154,16 +161,53 @@ export default function Hustle({ experiences, onSave, onDelete, saving = false, 
 
       <div className="mt-6 space-y-4">
         {experiences.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
+          <p className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 text-center text-sm text-slate-500 dark:text-slate-400 transition-colors">
             You have not logged any experience yet. Tap “Log experience” to start.
           </p>
         )}
 
-        {/* Pass onDelete handler down to each ExperienceCard */}
         {experiences.map((e) => (
-          <ExperienceCard key={e.id} {...e} onDelete={onDelete} />
+          <ExperienceCard 
+            key={e.id} 
+            {...e} 
+            onDelete={onDelete}
+            onEditClick={(id, text) => {
+              setEditingId(id);
+              setEditText(text);
+            }}
+          />
         ))}
       </div>
+
+      {/* EDIT MODAL */}
+      {editingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-800 p-6 shadow-xl border border-slate-200 dark:border-slate-700 transition-colors">
+            <h3 className="text-lg font-extrabold text-slate-950 dark:text-white">Edit Experience</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Update the description of your experience.</p>
+            
+            <textarea
+              className="mt-4 min-h-32 w-full resize-none rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white p-4 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 transition"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+            />
+
+            <div className="mt-4 flex gap-3">
+              <Button kind="secondary" className="flex-1" onClick={() => setEditingId(null)}>
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={() => {
+                if (onEdit && editingId) {
+                  onEdit(editingId, editText);
+                }
+                setEditingId(null);
+              }}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -171,27 +215,31 @@ export default function Hustle({ experiences, onSave, onDelete, saving = false, 
 // ==========================================
 // 3. THE EXPERIENCE CARD COMPONENT
 // ==========================================
-function ExperienceCard({ id, date, skills, text, title, onDelete }: ExperienceItem & { onDelete?: (id: string) => void }) {
+function ExperienceCard({ id, date, skills, text, title, onDelete, onEditClick }: ExperienceItem & { onDelete?: (id: string) => void, onEditClick?: (id: string, text: string) => void }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+    <article className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 sm:p-6 transition-colors">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-extrabold text-slate-950">{title}</h2>
-          <p className="mt-1 text-xs text-slate-400">{date}</p>
+          <h2 className="font-extrabold text-slate-950 dark:text-white">{title}</h2>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{date}</p>
         </div>
         
-        {/* Action icons grouping: Edit Pencil and Trash Delete button */}
         <div className="flex items-center gap-2">
-          {/* Edit Icon */}
-          <button aria-label="Edit experience" className="text-slate-400 hover:text-blue-600 transition cursor-pointer" type="button">
-            <Icon name="edit" size={18} />
-          </button>
+          {onEditClick && (
+            <button 
+              onClick={() => onEditClick(id, text)}
+              aria-label="Edit experience" 
+              className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer" 
+              type="button"
+            >
+              <Icon name="edit" size={18} />
+            </button>
+          )}
 
-          {/* Delete Trash Icon (Person 4 Feature) */}
           {onDelete && (
             <button 
               aria-label="Delete experience" 
-              className="text-slate-400 hover:text-rose-600 transition cursor-pointer" 
+              className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer" 
               onClick={() => onDelete(id)}
               type="button"
             >
@@ -203,11 +251,11 @@ function ExperienceCard({ id, date, skills, text, title, onDelete }: ExperienceI
         </div>
       </div>
       
-      <p className="mt-4 text-sm leading-6 text-slate-600">{text}</p>
+      <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">{text}</p>
       
       <div className="mt-4 flex flex-wrap gap-2">
         {skills.map((skill) => (
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600" key={skill}>
+          <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors" key={skill}>
             {skill}
           </span>
         ))}
