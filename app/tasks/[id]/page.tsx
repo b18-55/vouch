@@ -25,6 +25,13 @@ export default function TaskDetailPage() {
   const [hasApplied, setHasApplied] = useState(false)
   const [error, setError] = useState('')
 
+  // FIX (Task 6): Report state
+  const [hasReported, setHasReported] = useState(false)
+  const [reporting, setReporting] = useState(false)
+
+  // ==========================================
+  // FETCH TASK
+  // ==========================================
   useEffect(() => {
     const loadTaskAndStatus = async () => {
       
@@ -64,6 +71,9 @@ export default function TaskDetailPage() {
     if (taskId) loadTaskAndStatus()
   }, [taskId, router])
 
+  // ==========================================
+  // HANDLE APPLY
+  // ==========================================
   const handleApply = async () => {
     setApplying(true)
     setError('')
@@ -88,6 +98,47 @@ export default function TaskDetailPage() {
     setApplying(false)
   }
 
+  // ==========================================
+  // HANDLE REPORT (Task 6 — Anti-scam)
+  // ==========================================
+  const handleReport = async () => {
+    if (hasReported || reporting) return
+
+    if (!window.confirm('Report this listing as suspicious or a scam?')) {
+      return
+    }
+
+    setReporting(true)
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+        return
+      }
+
+      const { error: reportError } = await supabase
+        .from('reports')
+        .insert({
+          listing_id: taskId,
+          reporter_id: session.user.id,
+          reason: 'Reported from listing detail page',
+        })
+
+      if (reportError) throw reportError
+
+      setHasReported(true)
+    } catch (err: any) {
+      console.error('Error submitting report:', err)
+      alert(err.message || 'Could not submit report. Please try again.')
+    } finally {
+      setReporting(false)
+    }
+  }
+
+  // ==========================================
+  // SKELETON LOADER UI
+  // ==========================================
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-5 py-8 lg:px-8 animate-pulse">
@@ -101,6 +152,9 @@ export default function TaskDetailPage() {
 
   if (!task) return <p className="p-8 text-center text-red-500 font-bold">{error}</p>
 
+  // ==========================================
+  // RENDER THE ACTUAL UI
+  // ==========================================
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
       <div className="grid gap-5 lg:grid-cols-[1.5fr_.8fr]">
@@ -152,6 +206,25 @@ export default function TaskDetailPage() {
 
           <div className="rounded-2xl bg-blue-50 dark:bg-blue-950/30 p-4 text-sm text-blue-900 dark:text-blue-300">
             <strong>Good to know:</strong> No formal experience needed. A supervisor will show you what to do.
+          </div>
+
+          {/* FIX (Task 6): Anti-scam Report Button */}
+          <div className="mt-6 border-t border-slate-100 dark:border-slate-700 pt-4">
+            {hasReported ? (
+              <p className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <Icon name="check" size={14} />
+                Report received. Our team will review this listing.
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleReport}
+                disabled={reporting}
+                className="text-xs font-bold text-red-500 hover:text-red-700 dark:hover:text-red-400 underline transition-colors disabled:opacity-60 cursor-pointer"
+              >
+                {reporting ? 'Sending report...' : 'Report this listing'}
+              </button>
+            )}
           </div>
         </article>
 

@@ -16,6 +16,7 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [location, setLocation] = useState("");
+
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Dark Mode State
@@ -34,6 +35,7 @@ export default function SettingsPage() {
         }
         setEmail(session.user.email || "");
 
+        // FIX (Task 1): Removed 'phone' AND 'portfolio_url' from the select query.
         const { data: profile } = await supabase
           .from("profiles")
           .select("full_name, location")
@@ -80,6 +82,7 @@ export default function SettingsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return router.push("/login");
 
+      // FIX (Task 1): Removed 'phone' AND 'portfolio_url' from the upsert query.
       const { error } = await supabase.from("profiles").upsert({
         id: session.user.id,
         full_name: fullName,
@@ -97,7 +100,7 @@ export default function SettingsPage() {
     }
   };
 
-  // --- SKELETON LOADER ---
+  // --- SKELETON LOADER (Task 2) ---
   if (fetchingUser) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8 animate-pulse">
