@@ -1,9 +1,4 @@
 'use client'
-// 'use client' is a Next.js directive. It tells Next.js that this page must be 
-// rendered on the browser (Client Component) because it uses React hooks like 
-// useState and useEffect, and it interacts with the Supabase database.
-
-// --- IMPORTS ---
 import { useEffect, useState } from 'react' 
 import { useRouter } from 'next/navigation' 
 import { supabase } from '@/lib/supabase' 
@@ -11,18 +6,12 @@ import Hustle, { ExperienceItem, ExperienceInput } from '@/components/Hustle'
 
 export default function HustlePage() {
   
-  // ==========================================
-  // 1. STATE MANAGEMENT
-  // ==========================================
   const [experiences, setExperiences] = useState<ExperienceItem[]>([])
   const [loading, setLoading] = useState(true) 
   const [saving, setSaving] = useState(false)  
   const [error, setError] = useState('')       
   const router = useRouter()
 
-  // ==========================================
-  // 2. FETCH EXISTING EXPERIENCES
-  // ==========================================
   useEffect(() => {
     const loadExperiences = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -56,9 +45,6 @@ export default function HustlePage() {
     loadExperiences()
   }, [router])
 
-  // ==========================================
-  // 3. SAVE A NEW EXPERIENCE
-  // ==========================================
   const handleSave = async (input: ExperienceInput) => {
     setSaving(true)
     setError('')
@@ -88,16 +74,12 @@ export default function HustlePage() {
     }
   }
 
-  // ==========================================
-  // 4. DELETE EXPERIENCE HANDLER (Person 4 Task)
-  // ==========================================
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this experience?')) {
       return
     }
 
     try {
-      // Delete from Supabase database
       const { error: deleteError } = await supabase
         .from('experiences')
         .delete()
@@ -105,7 +87,6 @@ export default function HustlePage() {
 
       if (deleteError) throw deleteError
 
-      // Refresh the local UI state instantly
       setExperiences((prev) => prev.filter((exp) => exp.id !== id))
     } catch (err: any) {
       console.error('Error deleting experience:', err)
@@ -113,15 +94,10 @@ export default function HustlePage() {
     }
   }
 
-  // ==========================================
-  // 5. EDIT EXPERIENCE HANDLER (Person 2 Task - NEW)
-  // ==========================================
-  // This is called when the user clicks "Save Changes" inside the Edit Modal
   const handleEdit = async (id: string, newDescription: string) => {
     setError('')
 
     try {
-      // Update the description in Supabase
       const { error: updateError } = await supabase
         .from('experiences')
         .update({ description: newDescription })
@@ -129,7 +105,6 @@ export default function HustlePage() {
 
       if (updateError) throw updateError
 
-      // Instantly update the UI without reloading the page
       setExperiences((prev) => 
         prev.map((exp) => 
           exp.id === id ? { ...exp, text: newDescription } : exp
@@ -141,46 +116,26 @@ export default function HustlePage() {
     }
   }
 
-  // ==========================================
-  // 6. RENDER THE PAGE
-  // ==========================================
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 transition-colors duration-200 pb-20">
-        <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-800 p-4 mb-2 flex items-center transition-colors duration-200">
-          <div className="h-5 w-32 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-        </nav>
-        <div className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
-          <div className="animate-pulse">
-            <div className="h-8 w-48 rounded bg-slate-200 dark:bg-slate-700" />
-            <div className="mt-2 h-4 w-64 rounded bg-slate-200 dark:bg-slate-700" />
-            <div className="mt-7 h-24 w-full rounded-2xl bg-slate-200 dark:bg-slate-700" />
-          </div>
-        </div>
+      <div className="mx-auto max-w-5xl px-5 py-8 lg:px-8 animate-pulse">
+        <div className="h-8 w-48 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="mt-2 h-4 w-64 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="mt-7 h-24 w-full rounded-2xl bg-slate-200 dark:bg-slate-700" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-20">
-      
-      {/* Top Navigation Bar */}
-      <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-800 p-4 mb-2 transition-colors duration-200">
-        <button onClick={() => router.push('/dashboard')} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors cursor-pointer">
-          ← Back to Dashboard
-        </button>
-      </nav>
-
-      {/* Render Team Member's Hustle Component with BOTH onDelete and onEdit props */}
+    <div className="pb-20">
       <Hustle 
         experiences={experiences} 
         onSave={handleSave} 
         onDelete={handleDelete}
-        onEdit={handleEdit} // <-- THIS IS THE NEW PROP WE ADDED
+        onEdit={handleEdit}
         saving={saving} 
         errorMessage={error} 
       />
-      
     </div>
   )
 }
