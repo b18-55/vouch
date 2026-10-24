@@ -134,7 +134,7 @@ export default function ProfilePage() {
   // 4. EDIT & DELETE EXPERIENCE LOGIC (Teammate's Code)
   // ==========================================
   const handleDeleteExperience = async (id: string) => {
-    // Show a native browser confirmation dialog
+    // 1. Ask for confirmation before doing anything destructive
     if (!window.confirm('Are you sure you want to delete this experience?')) {
       return
     }
@@ -142,21 +142,54 @@ export default function ProfilePage() {
     setDeletingId(id)
 
     try {
-      // Send the delete request to Supabase
-      const { error } = await supabase
+      // 2. Delete the experience itself
+      const { error: expError } = await supabase
         .from('experiences')
         .delete()
         .eq('id', id)
 
-      if (error) throw error
+      if (expError) throw expError
 
-      // THE FIX: Update the local UI state so the card disappears instantly 
-      // without needing to refresh the page.
+      // 3. BELT-AND-SUSPENDERS: Also delete the linked skills.
+      //
+      // Why this explicit delete exists when we have ON DELETE CASCADE:
+      //
+      // - Cascade SHOULD handle this automatically. The skills table has a
+      //   foreign key to experiences(id) with ON DELETE CASCADE, so when an
+      //   experience is deleted, all linked skills should disappear too.
+      //
+      // - But cascade ONLY fires if the foreign key constraint is actually
+      //   in place. If the constraint is missing (e.g. the SQL migration
+      //   didn't run on this environment) or misconfigured (ON DELETE NO ACTION
+      //   instead of CASCADE), skills stay behind as orphans — they have an
+      //   experience_id that points to nothing.
+      //
+      // - We hit exactly this bug on the live Vercel deployment: deleting
+      //   an experience left its skills on this profile page.
+      //
+      // - Deleting here explicitly guarantees cleanup regardless of the
+      //   database constraint state. If cascade IS working, this call
+      //   matches 0 rows (the skills were already deleted) and does nothing.
+      //   If cascade is NOT working, this call removes them.
+      //
+      // - This is intentionally the same logic as handleDelete in
+      //   app/hustle/page.tsx. Both places that can delete an experience
+      //   need the same safety net. If you find yourself removing one,
+      //   remove both — and understand the cascade caveat above first.
+      await supabase
+        .from('skills')
+        .delete()
+        .eq('experience_id', id)
+
+      // 4. Update the local UI state so the card disappears instantly
+      //    without needing a page refresh
       setExperiences((prev) => prev.filter((exp) => exp.id !== id))
+
     } catch (err: any) {
       console.error('Error deleting experience:', err)
       alert(err.message || 'Failed to delete experience.')
     } finally {
+      // Stop the loading spinner on the delete button
       setDeletingId(null)
     }
   }
