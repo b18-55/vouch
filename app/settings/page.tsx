@@ -285,11 +285,11 @@ export default function SettingsPage() {
                   
                   {/* --- CONTACT SUPPORT & LOG OUT BUTTONS (Person 4 Checklist) --- */}
                   <div className="pt-4 space-y-3 border-t border-slate-100 dark:border-slate-700">
-                    <a
-                      href="mailto:support@vouch.co.za"
+                                        <a
+                      href="mailto:support@vouch.app"
                       className="block w-full py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-750 transition"
                     >
-                      Contact Support (support@vouch.co.za)
+                      Contact Support (support@vouch.app)
                     </a>
 
                     <button

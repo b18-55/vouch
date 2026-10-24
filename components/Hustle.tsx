@@ -1,16 +1,16 @@
 "use client";
-// 'use client' is a Next.js directive. It tells Next.js that this component 
-// runs on the browser (Client Component) and not just on the server. 
+// 'use client' is required because we use React state (useState) to track the form inputs,
+// open the edit modal, and handle the delete clicks.
 
 import { useState } from "react";
-// We import our shared UI pieces from your teammate's ui.tsx file.
+// We import the shared UI components (Button, Icon, etc.) from your teammate's ui.tsx file.
 import { Button, Field, Icon, PageTitle } from "./ui";
 
 // ==========================================
 // 1. TYPESCRIPT TYPES
 // ==========================================
 export type ExperienceItem = {
-  id: string;       // The unique ID from the Supabase database
+  id: string;       // Unique database ID
   title: string;    // e.g. "Maths tutoring"
   date: string;     // Formatted date string (e.g. "18 October 2026")
   text: string;     // The description the user typed
@@ -23,13 +23,14 @@ export type ExperienceInput = {
   type: "Informal work" | "Volunteering" | "Side hustle" | "Community work";
 };
 
-// Added onDelete prop here as per Person 4 specifications
+// We define all the functions this component expects from its parent page.
 type HustleProps = {
-  experiences: ExperienceItem[];
-  onSave: (input: ExperienceInput) => Promise<void> | void;
-  onDelete?: (id: string) => Promise<void> | void; // Person 4 Delete Action
-  saving?: boolean;
-  errorMessage?: string;
+  experiences: ExperienceItem[]; 
+  onSave: (input: ExperienceInput) => Promise<void> | void; 
+  onDelete?: (id: string) => Promise<void> | void; // P4's Delete Feature
+  onEdit?: (id: string, newDescription: string) => Promise<void> | void; // P2's Edit Feature
+  saving?: boolean; 
+  errorMessage?: string; 
 };
 
 const MAX = 1000;
@@ -37,16 +38,25 @@ const MAX = 1000;
 // ==========================================
 // 2. MAIN COMPONENT
 // ==========================================
-export default function Hustle({ experiences, onSave, onDelete, saving = false, errorMessage }: HustleProps) {
+export default function Hustle({ experiences, onSave, onDelete, onEdit, saving = false, errorMessage }: HustleProps) {
   
-  const [form, setForm] = useState(false);
+  // --- STATE FOR LOGGING A NEW EXPERIENCE ---
+  const [form, setForm] = useState(false); // Toggles between the list view and the form view
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<ExperienceInput["type"]>("Informal work");
 
+  // --- STATE FOR P2'S EDIT MODAL ---
+  // If 'editingId' is null, the modal is closed. If it holds an ID, the modal opens.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
+  // The save button is only enabled if the title and description are filled out
   const canSave = title.trim().length > 0 && description.trim().length > 0 && !saving;
 
-  // VIEW 1: THE FORM
+  // ==========================================
+  // VIEW 1: THE FORM (To log a new experience)
+  // ==========================================
   if (form) {
     return (
       <div className="mx-auto max-w-3xl px-5 py-8 lg:px-8">
@@ -124,7 +134,9 @@ export default function Hustle({ experiences, onSave, onDelete, saving = false, 
     );
   }
 
-  // VIEW 2: THE LIST
+  // ==========================================
+  // VIEW 2: THE LIST OF EXPERIENCES
+  // ==========================================
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
       
@@ -159,11 +171,57 @@ export default function Hustle({ experiences, onSave, onDelete, saving = false, 
           </p>
         )}
 
-        {/* Pass onDelete handler down to each ExperienceCard */}
+        {/* 
+          We pass both 'onDelete' and 'onEditClick' down to every card. 
+          onEditClick just sets the state to open the modal.
+        */}
         {experiences.map((e) => (
-          <ExperienceCard key={e.id} {...e} onDelete={onDelete} />
+          <ExperienceCard 
+            key={e.id} 
+            {...e} 
+            onDelete={onDelete}
+            onEditClick={(id, text) => {
+              setEditingId(id);
+              setEditText(text);
+            }}
+          />
         ))}
       </div>
+
+      {/* ==========================================
+          THE EDIT MODAL (P2 Feature)
+          ========================================== */}
+      {/* This only renders if editingId is not null */}
+      {editingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+            <h3 className="text-lg font-extrabold text-slate-950">Edit Experience</h3>
+            <p className="mt-1 text-sm text-slate-500">Update the description of your experience.</p>
+            
+            <textarea
+              className="mt-4 min-h-32 w-full resize-none rounded-xl border border-slate-200 p-4 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+            />
+
+            <div className="mt-4 flex gap-3">
+              <Button kind="secondary" className="flex-1" onClick={() => setEditingId(null)}>
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={() => {
+                // Call the parent function to update Supabase
+                if (onEdit && editingId) {
+                  onEdit(editingId, editText);
+                }
+                // Close the modal
+                setEditingId(null);
+              }}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -171,7 +229,8 @@ export default function Hustle({ experiences, onSave, onDelete, saving = false, 
 // ==========================================
 // 3. THE EXPERIENCE CARD COMPONENT
 // ==========================================
-function ExperienceCard({ id, date, skills, text, title, onDelete }: ExperienceItem & { onDelete?: (id: string) => void }) {
+// This renders a single experience in the list.
+function ExperienceCard({ id, date, skills, text, title, onDelete, onEditClick }: ExperienceItem & { onDelete?: (id: string) => void, onEditClick?: (id: string, text: string) => void }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
       <div className="flex items-start justify-between gap-4">
@@ -180,14 +239,22 @@ function ExperienceCard({ id, date, skills, text, title, onDelete }: ExperienceI
           <p className="mt-1 text-xs text-slate-400">{date}</p>
         </div>
         
-        {/* Action icons grouping: Edit Pencil and Trash Delete button */}
+        {/* Grouping the action icons together on the right */}
         <div className="flex items-center gap-2">
-          {/* Edit Icon */}
-          <button aria-label="Edit experience" className="text-slate-400 hover:text-blue-600 transition cursor-pointer" type="button">
-            <Icon name="edit" size={18} />
-          </button>
+          
+          {/* Edit Icon (P2) */}
+          {onEditClick && (
+            <button 
+              onClick={() => onEditClick(id, text)}
+              aria-label="Edit experience" 
+              className="text-slate-400 hover:text-blue-600 transition cursor-pointer" 
+              type="button"
+            >
+              <Icon name="edit" size={18} />
+            </button>
+          )}
 
-          {/* Delete Trash Icon (Person 4 Feature) */}
+          {/* Delete Icon (P4) */}
           {onDelete && (
             <button 
               aria-label="Delete experience" 
