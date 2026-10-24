@@ -1,11 +1,14 @@
 'use client'
+// 'use client' is required for this file because we use React hooks (useState, useEffect)
+// and browser APIs (window, navigator) which only run on the client side.
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button, Icon } from '@/components/ui'
 
 // ==========================================
-// 1. TYPESCRIPT TYPES
+// 1. TYPESCRIPT TYPES (Defining our data shapes)
 // ==========================================
 type Profile = {
   full_name: string | null
@@ -40,32 +43,39 @@ export default function ProfilePage() {
   const [experiences, setExperiences] = useState<Experience[]>([])
   const [loading, setLoading] = useState(true)
 
+  // State for deleting and editing experiences
   const [deletingId, setDeletingId] = useState<string | null>(null) 
   const [editingExp, setEditingExp] = useState<Experience | null>(null) 
   const [editTitle, setEditTitle] = useState('') 
   const [editType, setEditType] = useState('') 
+  const [editDescription, setEditDescription] = useState('') // NEW: State for the description field
   const [savingEdit, setSavingEdit] = useState(false) 
 
   // --- FETCH DATA ON PAGE LOAD ---
   useEffect(() => {
     const loadProfile = async () => {
+      // 1. Check if the user is logged in
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
-        router.push('/login')
+        router.push('/login') // Kick them to login if no session
         return
       }
 
+      // 2. Fetch Profile, Skills, and Experiences simultaneously using Promise.all
+      // This is faster than doing them one by one!
       const [profileRes, skillsRes, expRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', session.user.id).single(),
         supabase.from('skills').select('id, name').eq('profile_id', session.user.id),
         supabase.from('experiences').select('*').eq('profile_id', session.user.id).order('created_at', { ascending: false })
       ])
 
+      // 3. Save the data to our React state
       if (profileRes.data) setProfile(profileRes.data)
       if (skillsRes.data) setSkills(skillsRes.data)
       if (expRes.data) setExperiences(expRes.data)
 
+      // 4. Turn off the loading skeleton
       setLoading(false)
     }
     
@@ -79,34 +89,34 @@ export default function ProfilePage() {
     const slug = profile?.public_slug
     if (!slug) return alert("Profile link not ready yet. Try reloading.")
 
+    // We construct the public URL (e.g., vouch.app/p/hazel-123)
     const url = `${window.location.origin}/p/${slug}`
+    const text = 'Check out my verified skills on Vouch!'
     
-    const shareData = {
-      title: 'My Vouch Profile',
-      text: 'Check out my verified skills on Vouch!',
-      url: url
-    }
-
+    // If the device supports the native share sheet (like a phone), use that!
     if (navigator.share) {
       try { 
-        await navigator.share(shareData) 
+        await navigator.share({ title: 'My Vouch Profile', text, url }) 
       } catch (err) { 
         console.log('Share cancelled') 
       }
     } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(shareData.text + ' ' + url)}`, '_blank')
+      // If on a desktop/laptop, open WhatsApp Web directly with the pre-filled message
+      window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank')
     }
   }
 
   // ==========================================
   // 4. EDIT & DELETE EXPERIENCE LOGIC
   // ==========================================
+  
+  // Delete logic
   const handleDeleteExperience = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this experience?')) {
       return
     }
 
-    setDeletingId(id)
+    setDeletingId(id) // Show loading state on the trash can icon
 
     try {
       const { error } = await supabase
@@ -116,6 +126,7 @@ export default function ProfilePage() {
 
       if (error) throw error
 
+      // Remove it from the UI without needing to refresh the page
       setExperiences((prev) => prev.filter((exp) => exp.id !== id))
     } catch (err: any) {
       console.error('Error deleting experience:', err)
@@ -125,12 +136,15 @@ export default function ProfilePage() {
     }
   }
 
+  // Open Edit Modal logic
   const handleOpenEdit = (exp: Experience) => {
     setEditingExp(exp)
     setEditTitle(exp.title || '')
     setEditType(exp.type || '')
+    setEditDescription(exp.description || '')
   }
 
+  // Save Edit logic
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingExp) return
@@ -138,22 +152,26 @@ export default function ProfilePage() {
     setSavingEdit(true)
 
     try {
+      // Update the database
       const { error } = await supabase
         .from('experiences')
         .update({
           title: editTitle,
           type: editType,
+          description: editDescription,
         })
         .eq('id', editingExp.id)
 
       if (error) throw error
 
+      // Update the UI locally
       setExperiences((prev) =>
         prev.map((exp) =>
-          exp.id === editingExp.id ? { ...exp, title: editTitle, type: editType } : exp
+          exp.id === editingExp.id ? { ...exp, title: editTitle, type: editType, description: editDescription } : exp
         )
       )
 
+      // Close the modal
       setEditingExp(null)
     } catch (err: any) {
       console.error('Error updating experience:', err)
@@ -166,6 +184,7 @@ export default function ProfilePage() {
   // ==========================================
   // 5. SKELETON LOADER
   // ==========================================
+  // Shows a pulsing shape that looks like the profile while the database fetches
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 animate-pulse transition-colors duration-300">
@@ -195,13 +214,23 @@ export default function ProfilePage() {
     )
   }
 
+  // Get the user's initials for the avatar (e.g., "Hazel Ntuli" -> "HN")
   const initials = profile?.full_name 
     ? profile.full_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() 
     : 'U'
 
+  // Remove duplicate skills from the UI using a Map
   const uniqueSkills = Array.from(
     new Map(skills.map(skill => [skill.name, skill])).values()
   )
+
+  // --- DYNAMIC PROFILE STRENGTH CALCULATION ---
+  // 30% for basic details, 20% for bio, 25% for skills, 25% for experience
+  let score = 0
+  if (profile?.full_name && profile?.location) score += 30
+  if (profile?.bio) score += 20
+  if (skills.length > 0) score += 25
+  if (experiences.length > 0) score += 25
 
   // ==========================================
   // 6. RENDER THE UI
@@ -209,22 +238,23 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 transition-colors duration-300">
       
-      {/* Removed the local header containing "Back to Dashboard" to rely on the global layout */}
-
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
         
         {/* PROFILE HEADER CARD */}
         <div className="overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors duration-300">
+          {/* Blue Gradient Banner */}
           <div className="h-28 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500" />
           
           <div className="px-5 pb-7 sm:px-8">
             <div className="-mt-12 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
               
               <div className="flex items-end gap-4">
+                {/* Avatar Circle */}
                 <div className="grid h-24 w-24 place-items-center rounded-3xl border-4 border-white dark:border-slate-900 bg-blue-100 dark:bg-blue-900/50 text-2xl font-extrabold text-blue-700 dark:text-blue-300 shadow-sm">
                   {initials}
                 </div>
                 
+                {/* Name and Location */}
                 <div className="pb-1">
                   <h1 className="text-2xl font-extrabold text-slate-950 dark:text-white">
                     {profile?.full_name || 'Your Name'}
@@ -236,6 +266,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               
+              {/* Edit and Share Buttons */}
               <div className="flex gap-2">
                 <Button kind="secondary" onClick={() => router.push('/profile/edit')}>
                   <Icon name="edit" size={17} />
@@ -248,13 +279,14 @@ export default function ProfilePage() {
               </div>
             </div>
             
+            {/* Bio */}
             <p className="mt-6 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
               {profile?.bio || 'No bio added yet. Tell employers a bit about yourself.'}
             </p>
           </div>
         </div>
 
-        {/* MAIN GRID */}
+        {/* MAIN GRID (Skills/Experience on left, Strength on right) */}
         <div className="mt-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
           
           <div className="space-y-5">
@@ -297,15 +329,21 @@ export default function ProfilePage() {
                       key={exp.id}
                       className="relative flex items-start justify-between gap-4 pl-7 before:absolute before:left-[5px] before:top-6 before:h-[calc(100%+1.5rem)] before:w-px before:bg-slate-200 dark:before:bg-slate-700 last:before:hidden" 
                     >
+                      {/* Timeline dot */}
                       <span className="absolute left-0 top-1 h-3 w-3 rounded-full border-[3px] border-blue-100 dark:border-slate-800 bg-blue-600" />
                       
+                      {/* Experience Details */}
                       <div className="flex-1">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">{exp.title}</p>
                         <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                           {exp.type} · {new Date(exp.created_at).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' })}
                         </p>
+                        {exp.description && (
+                           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{exp.description}</p>
+                        )}
                       </div>
 
+                      {/* Action Buttons (Edit/Delete) */}
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
@@ -337,6 +375,7 @@ export default function ProfilePage() {
             </section>
           </div>
 
+          {/* SIDEBAR: PROFILE STRENGTH */}
           <aside className="space-y-5">
             <div className="rounded-2xl bg-slate-950 dark:bg-slate-900 border dark:border-slate-800 p-6 text-white transition-colors duration-300">
               <div className="flex items-start justify-between">
@@ -344,15 +383,19 @@ export default function ProfilePage() {
                   <p className="font-bold">Profile strength</p>
                   <p className="mt-1 text-xs text-slate-400">Self-reported</p>
                 </div>
-                <p className="text-3xl font-extrabold">70%</p>
+                {/* Dynamic Score */}
+                <p className="text-3xl font-extrabold">{score}%</p>
               </div>
               
+              {/* Dynamic Progress Bar */}
               <div className="mt-5 h-2 rounded-full bg-slate-700">
-                <div className="h-full w-[70%] rounded-full bg-blue-500" />
+                <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${score}%` }} />
               </div>
               
               <p className="mt-4 text-xs leading-5 text-slate-300">
-                Add one more experience to reach 80%.
+                {score === 100 
+                  ? 'Your profile is complete and ready to impress!' 
+                  : 'Add more details, skills, or experience to reach 100%.'}
               </p>
             </div>
           </aside>
@@ -360,12 +403,16 @@ export default function ProfilePage() {
         </div>
       </main>
 
+      {/* ========================================== */}
       {/* EDIT EXPERIENCE MODAL */}
+      {/* ========================================== */}
       {editingExp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-xl border border-slate-200 dark:border-slate-700">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Experience</h3>
+            
             <form onSubmit={handleSaveEdit} className="mt-4 space-y-4">
+              {/* Title Input */}
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Title / Role</label>
                 <input
@@ -376,6 +423,8 @@ export default function ProfilePage() {
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-600 outline-none dark:text-white"
                 />
               </div>
+              
+              {/* Type Input */}
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Type / Category</label>
                 <input
@@ -386,6 +435,18 @@ export default function ProfilePage() {
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-600 outline-none dark:text-white"
                 />
               </div>
+
+              {/* Description Input */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Description</label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-600 outline-none dark:text-white min-h-[100px]"
+                />
+              </div>
+
+              {/* Buttons */}
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"

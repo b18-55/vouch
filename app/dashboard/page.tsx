@@ -26,8 +26,6 @@ export default function DashboardPage() {
   const [skillsCount, setSkillsCount] = useState(0)
   const [expCount, setExpCount] = useState(0)
   const [profileStrength, setProfileStrength] = useState(0)
-  
-  // NEW: State to hold real tasks from the database
   const [recentTasks, setRecentTasks] = useState<Task[]>([])
   
   const router = useRouter()
@@ -53,12 +51,11 @@ export default function DashboardPage() {
         .select('*', { count: 'exact', head: true })
         .eq('profile_id', session.user.id)
 
-      // NEW: Fetch real tasks to display on the dashboard
       const { data: taskData } = await supabase
         .from('micro_tasks')
         .select('id, title, employer_name, pay_amount, duration_days')
         .eq('status', 'open')
-        .limit(2) // Only grab 2 for the dashboard
+        .limit(2)
 
       let score = 0
       if (data?.full_name && data?.location) score += 30
@@ -79,6 +76,11 @@ export default function DashboardPage() {
   const currentHour = new Date().getHours()
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening'
   const todayDate = new Date().toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  // NEW: Dynamic Trust Score Breakdown calculation
+  const skillsScore = Math.min(80, skillsCount * 20) // 4 skills maxes it out
+  const gigsScore = Math.min(40, expCount * 20) // 2 gigs maxes it out
+  const sharedScore = profile?.bio ? 10 : 0 // 10 points if they have a bio
 
   if (loading) {
     return (
@@ -133,21 +135,31 @@ export default function DashboardPage() {
           <div className="mt-5 h-2 rounded-full bg-slate-100 dark:bg-slate-700">
             <div className="h-full rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-500" style={{ width: `${profileStrength}%` }} />
           </div>
+          
+          {/* NEW: Dynamic Trust Score Breakdown */}
           <p className="mt-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            Skills (30/80) · Gigs (0/40) · Profile Shared (10/10)
+            Skills ({skillsScore}/80) · Gigs ({gigsScore}/40) · Profile Shared ({sharedScore}/10)
           </p>
+          
+          {/* NEW: Dynamic Checklist */}
           <ul className="mt-5 space-y-3 text-sm">
-            <li className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-              <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400"><Icon name="check" size={13} /></span>
-              Basic details added
+            <li className={`flex items-center gap-2 ${profile?.full_name && profile?.location ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
+              <span className={`grid h-5 w-5 place-items-center rounded-full ${profile?.full_name && profile?.location ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400' : 'border border-slate-200 dark:border-slate-700'}`}>
+                {profile?.full_name && profile?.location && <Icon name="check" size={13} />}
+              </span>
+              {profile?.full_name && profile?.location ? 'Basic details added' : 'Add basic details'}
             </li>
-            <li className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-              <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400"><Icon name="check" size={13} /></span>
-              Trust score: {profile?.trust_score ?? 0}/100
+            <li className={`flex items-center gap-2 ${skillsCount > 0 ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
+              <span className={`grid h-5 w-5 place-items-center rounded-full ${skillsCount > 0 ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400' : 'border border-slate-200 dark:border-slate-700'}`}>
+                {skillsCount > 0 && <Icon name="check" size={13} />}
+              </span>
+              {skillsCount > 0 ? `Skills added (${skillsCount})` : 'Add your first skills'}
             </li>
-            <li className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
-              <span className="h-5 w-5 rounded-full border border-slate-200 dark:border-slate-700" />
-              Add one more experience
+            <li className={`flex items-center gap-2 ${expCount > 0 ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
+              <span className={`grid h-5 w-5 place-items-center rounded-full ${expCount > 0 ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400' : 'border border-slate-200 dark:border-slate-700'}`}>
+                {expCount > 0 && <Icon name="check" size={13} />}
+              </span>
+              {expCount > 0 ? `Experience logged (${expCount})` : 'Log a completed gig'}
             </li>
           </ul>
         </div>
@@ -166,19 +178,19 @@ export default function DashboardPage() {
         
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           
-          {/* DYNAMIC TASKS: Loops through the real tasks fetched from your database */}
           {recentTasks.length === 0 ? (
             <p className="text-sm text-slate-500 dark:text-slate-400 col-span-2">No opportunities available right now.</p>
           ) : (
             recentTasks.map((task) => (
               <button 
                 key={task.id}
-                onClick={() => router.push(`/tasks/${task.id}`)} // Routes to the REAL task ID
+                onClick={() => router.push(`/tasks/${task.id}`)}
                 className="group w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 dark:hover:border-blue-600 hover:shadow-lg"
               >
                 <div className="flex items-start justify-between gap-3">
                   <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400"><Icon name="briefcase" /></span>
-                  <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">92% match</span>
+                  {/* FIX: Removed hardcoded 92% match and replaced with a safer label */}
+                  <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-xs font-extrabold text-slate-600 dark:text-slate-300">Open</span>
                 </div>
                 <h3 className="mt-5 text-base font-extrabold text-slate-950 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">{task.title}</h3>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.employer_name}</p>

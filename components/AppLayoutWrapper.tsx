@@ -8,19 +8,20 @@ import BottomNav from './BottomNav'
 export default function AppLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
-  // Define pages that should not display the authenticated sidebar and headers.
-  // Added /employer and /admin to this list.
+  // 1. Define pages that should NOT display the authenticated sidebar and headers.
   const isPublicPage = 
     pathname === '/' || 
     pathname === '/login' || 
     pathname === '/register' || 
     pathname === '/employer' || 
-    pathname === '/admin'
+    pathname === '/admin' ||
+    pathname.startsWith('/p/') // <--- THIS IS THE MAGIC LINE WE ADDED
 
   if (isPublicPage) {
-    return <main className="min-h-screen">{children}</main>
+    return <main className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950">{children}</main>
   }
 
+  // 2. Otherwise, show your original, beautiful dashboard layout
   return (
     <div className="flex min-h-screen bg-[#f7f9fc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       
