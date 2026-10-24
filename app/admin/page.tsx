@@ -3,10 +3,8 @@ import { Button, Icon, PageTitle } from '@/components/ui'
 
 export default function AdminPage() {
   return (
-    // OUTER CONTAINER: Added dark mode background and text color
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 dark:text-slate-100 pb-20 transition-colors duration-200">
       
-      {/* --- TOP NAVIGATION BAR --- */}
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-5 lg:px-8 transition-colors duration-200">
         <div className="flex items-center gap-2">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-slate-900 dark:bg-slate-700 text-white">
@@ -15,7 +13,6 @@ export default function AdminPage() {
           <span className="text-xl font-extrabold tracking-tight text-slate-950 dark:text-white">Vouch</span>
           <span className="ml-2 rounded-md bg-slate-100 dark:bg-slate-700 px-2 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">Platform Admin</span>
         </div>
-        {/* FIX: Changed href from "/dashboard" to "/roles" */}
         <Link href="/roles" className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white transition-colors">
           Back to Youth App
         </Link>
@@ -23,9 +20,9 @@ export default function AdminPage() {
 
       <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
         
-        {/* Roadmap Badge: Added dark mode colors */}
+        {/* Updated Warning Badge */}
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 text-xs font-bold text-amber-800 dark:text-amber-400">
-          🚧 Roadmap: Designed, planned after the hackathon
+          Coming soon
         </div>
 
         <PageTitle 
@@ -34,9 +31,7 @@ export default function AdminPage() {
           text="Here’s what needs your attention today." 
         />
 
-        {/* --- STATS GRID --- */}
         <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {/* Added dark mode classes to all stat cards */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-5 transition-colors duration-200">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Active users</p>
             <p className="mt-2 text-3xl font-extrabold text-slate-950 dark:text-white">2,481</p>
@@ -56,10 +51,8 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* --- MAIN CONTENT GRID --- */}
         <div className="mt-6 grid gap-5 lg:grid-cols-2">
           
-          {/* LEFT SIDE: Review Queue */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
             <div className="flex justify-between">
               <h2 className="font-extrabold text-slate-950 dark:text-white">Review queue</h2>
@@ -67,7 +60,6 @@ export default function AdminPage() {
             </div>
             <div className="mt-5 space-y-3">
               
-              {/* Review Item 1 */}
               <div className="flex items-center gap-3 rounded-xl bg-slate-50 dark:bg-slate-700/50 p-3 transition-colors">
                 <span className="h-2 w-2 rounded-full bg-red-500" />
                 <div className="flex-1">
@@ -77,7 +69,6 @@ export default function AdminPage() {
                 <span className="text-slate-400 dark:text-slate-500"><Icon name="chevron" size={16} /></span>
               </div>
 
-              {/* Review Item 2 */}
               <div className="flex items-center gap-3 rounded-xl bg-slate-50 dark:bg-slate-700/50 p-3 transition-colors">
                 <span className="h-2 w-2 rounded-full bg-red-500" />
                 <div className="flex-1">
@@ -90,11 +81,9 @@ export default function AdminPage() {
             </div>
           </div>
           
-          {/* RIGHT SIDE: Platform Activity */}
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
             <h2 className="font-extrabold text-slate-950 dark:text-white">Platform activity</h2>
             <div className="mt-5 space-y-5">
-              {/* Activity Item 1 */}
               <div className="flex gap-3">
                 <span className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
                 <div>
@@ -102,7 +91,6 @@ export default function AdminPage() {
                   <p className="text-xs text-slate-400 dark:text-slate-500">In the last 24 hours</p>
                 </div>
               </div>
-              {/* Activity Item 2 */}
               <div className="flex gap-3">
                 <span className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
                 <div>
@@ -110,7 +98,6 @@ export default function AdminPage() {
                   <p className="text-xs text-slate-400 dark:text-slate-500">Across 6 employers</p>
                 </div>
               </div>
-              {/* Activity Item 3 */}
               <div className="flex gap-3">
                 <span className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
                 <div>
