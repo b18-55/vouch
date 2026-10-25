@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { Icon, PageTitle } from '@/components/ui'
 
 // ==========================================
-// 1. TYPESCRIPT TYPES
+// 1. TYPESCRIPT TYPES & SYNONYMS
 // ==========================================
 type Task = {
   id: string
@@ -20,6 +20,17 @@ type Task = {
   skills_required?: string[] | null
 }
 
+// THE MAGIC: A lightweight dictionary to connect similar skills.
+// If a user has the key skill, they get partial credit for the related skills.
+const RELATED_SKILLS: Record<string, string[]> = {
+  'customer service': ['communication', 'sales', 'support', 'retail', 'organisation'],
+  'cash handling': ['record keeping', 'finance', 'math', 'attention to detail'],
+  'point of sale operation': ['cash handling', 'retail', 'sales', 'customer service'],
+  'social media': ['marketing', 'design', 'communication', 'copywriting'],
+  'tutoring': ['teaching', 'patience', 'communication', 'mathematics'],
+  'data entry': ['excel', 'attention to detail', 'typing', 'organisation']
+}
+
 export default function TasksPage() {
   
   // --- STATE MANAGEMENT ---
@@ -27,7 +38,6 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true)
   const [userSkills, setUserSkills] = useState<string[]>([])
 
-  // Filter states
   const [searchQuery, setSearchQuery] = useState('')
   const [locationFilter, setLocationFilter] = useState('Any location')
   const [payFilter, setPayFilter] = useState('Any pay')
@@ -43,7 +53,6 @@ export default function TasksPage() {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) return router.push('/login')
 
-        // Fetch all open tasks
         const { data, error } = await supabase
           .from('micro_tasks')
           .select('*')
@@ -52,7 +61,6 @@ export default function TasksPage() {
         if (error) throw error
         if (data) setTasks(data)
 
-        // Fetch user skills
         const { data: skillsData } = await supabase
           .from('skills')
           .select('name')
@@ -72,32 +80,48 @@ export default function TasksPage() {
   }, [router])
 
   // ==========================================
-  // 3. MATCHING, FILTERING, AND SORTING LOGIC
+  // 3. SMART MATCHING & SORTING LOGIC
   // ==========================================
   
-  // STEP A: Calculate the match percentage for EVERY task
   const tasksWithMatchScore = tasks.map((task) => {
     const lowerUserSkills = userSkills.map(s => s.toLowerCase())
+    const required = task.skills_required || []
     
-    // Count how many required skills the user has
-    const matchedSkillsCount = task.skills_required?.filter(skill => 
-      lowerUserSkills.includes(skill.toLowerCase())
-    ).length || 0
+    let matchedPoints = 0
 
-    const totalRequired = task.skills_required?.length || 0
+    // Loop through the job's required skills
+    required.forEach(reqSkill => {
+      const lowerReq = reqSkill.toLowerCase()
+      
+      // 1. Check for an exact match (worth 1 full point)
+      if (lowerUserSkills.includes(lowerReq)) {
+        matchedPoints += 1
+        return
+      }
+
+      // 2. Check for a related/synonym match (worth 0.5 points)
+      const hasRelatedSkill = lowerUserSkills.some(userSkill => 
+        RELATED_SKILLS[userSkill]?.includes(lowerReq) || 
+        RELATED_SKILLS[lowerReq]?.includes(userSkill)
+      )
+      
+      if (hasRelatedSkill) {
+        matchedPoints += 0.5 
+      }
+    })
+
+    const totalRequired = required.length
     
-    // Calculate percentage
+    // Calculate percentage (capped at 100)
     const matchPercentage = totalRequired > 0 
-      ? Math.round((matchedSkillsCount / totalRequired) * 100) 
+      ? Math.min(100, Math.round((matchedPoints / totalRequired) * 100))
       : 0
 
     return { ...task, matchPercentage }
   })
 
-  // STEP B: Filter by the user's dropdowns (Search, Location, Pay)
   const filteredTasks = tasksWithMatchScore.filter((task) => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase())
-    
     const matchesLocation =
       locationFilter === 'Any location' ||
       (task.location && task.location.toLowerCase().includes(locationFilter.toLowerCase()))
@@ -109,7 +133,7 @@ export default function TasksPage() {
     return matchesSearch && matchesLocation && matchesPay
   })
 
-  // STEP C: Sort the tasks so the highest percentage match is at the top
+  // Sort highest percentage to lowest
   filteredTasks.sort((a, b) => b.matchPercentage - a.matchPercentage)
 
   // ==========================================
@@ -140,10 +164,7 @@ export default function TasksPage() {
     <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
       <PageTitle title="Find opportunities" text="Short, paid work matched to what you can do." />
 
-      {/* FILTER BAR */}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        
-        {/* Search Input */}
         <label className="relative flex-1">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
             <Icon name="search" size={19} />
@@ -156,7 +177,6 @@ export default function TasksPage() {
           />
         </label>
 
-        {/* Location Dropdown */}
         <select
           className="h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none cursor-pointer transition"
           value={locationFilter}
@@ -169,7 +189,6 @@ export default function TasksPage() {
           <option className="dark:bg-slate-800">Johannesburg</option>
         </select>
 
-        {/* Pay Dropdown */}
         <select
           className="h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none cursor-pointer transition"
           value={payFilter}
@@ -185,7 +204,6 @@ export default function TasksPage() {
         {filteredTasks.length} open opportunities
       </p>
 
-      {/* EMPTY STATE */}
       {filteredTasks.length === 0 ? (
         <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-12 text-center transition-colors duration-200">
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-300">
@@ -196,13 +214,11 @@ export default function TasksPage() {
         </div>
       ) : (
         <>
-          {/* ANTI-SCAM BANNER */}
           <div className="mt-4 mb-4 flex items-center gap-2 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm font-semibold text-amber-800 dark:text-amber-300">
             <Icon name="lock" size={18} />
             Vouch is free. Never pay anyone to apply for a gig.
           </div>
 
-          {/* TASK GRID */}
           <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredTasks.map((task) => {
               return (
@@ -217,7 +233,6 @@ export default function TasksPage() {
                     </span>
 
                     <div className="flex items-center gap-2">
-                      {/* If match is greater than 0, show the percentage. Otherwise show 'Open' */}
                       {task.matchPercentage > 0 ? (
                         <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900">
                           {task.matchPercentage}% match
