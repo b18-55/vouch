@@ -1,9 +1,15 @@
 'use client'
+// Client component: uses React hooks (useState, useEffect) to fetch task details
+// and handle click events (Apply, Report).
+
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button, Icon } from '@/components/ui'
 
+// ==========================================
+// 1. TYPESCRIPT TYPES
+// ==========================================
 type Task = {
   id: string
   title: string
@@ -19,28 +25,31 @@ export default function TaskDetailPage() {
   const params = useParams()
   const taskId = params.id as string
 
+  // --- STATE ---
   const [task, setTask] = useState<Task | null>(null)
   const [loading, setLoading] = useState(true)
   const [applying, setApplying] = useState(false)
   const [hasApplied, setHasApplied] = useState(false)
   const [error, setError] = useState('')
 
-  // FIX (Task 6): Report state
+  // Anti-scam report state
   const [hasReported, setHasReported] = useState(false)
   const [reporting, setReporting] = useState(false)
 
   // ==========================================
-  // FETCH TASK
+  // 2. FETCH TASK AND APPLICATION STATUS
   // ==========================================
   useEffect(() => {
     const loadTaskAndStatus = async () => {
       
+      // Step A: Authenticate
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push('/login')
         return
       }
 
+      // Step B: Fetch the task details
       const { data: taskData, error: taskError } = await supabase
         .from('micro_tasks')
         .select('*')
@@ -54,6 +63,7 @@ export default function TaskDetailPage() {
       }
       setTask(taskData)
 
+      // Step C: Check if the user has already applied for this task
       const { data: applicationData } = await supabase
         .from('applications')
         .select('id')
@@ -72,7 +82,7 @@ export default function TaskDetailPage() {
   }, [taskId, router])
 
   // ==========================================
-  // HANDLE APPLY
+  // 3. HANDLE APPLY
   // ==========================================
   const handleApply = async () => {
     setApplying(true)
@@ -81,6 +91,7 @@ export default function TaskDetailPage() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
+    // Insert a new row into the 'applications' table
     const { error: applyError } = await supabase
       .from('applications')
       .insert({
@@ -92,14 +103,14 @@ export default function TaskDetailPage() {
     if (applyError) {
       setError(applyError.message)
     } else {
-      setHasApplied(true)
+      setHasApplied(true) // Update UI to show success
     }
     
     setApplying(false)
   }
 
   // ==========================================
-  // HANDLE REPORT (Task 6 — Anti-scam)
+  // 4. HANDLE REPORT (Anti-scam)
   // ==========================================
   const handleReport = async () => {
     if (hasReported || reporting) return
@@ -117,6 +128,7 @@ export default function TaskDetailPage() {
         return
       }
 
+      // Insert into the 'reports' table
       const { error: reportError } = await supabase
         .from('reports')
         .insert({
@@ -127,7 +139,7 @@ export default function TaskDetailPage() {
 
       if (reportError) throw reportError
 
-      setHasReported(true)
+      setHasReported(true) // Update UI to show success
     } catch (err: any) {
       console.error('Error submitting report:', err)
       alert(err.message || 'Could not submit report. Please try again.')
@@ -137,7 +149,7 @@ export default function TaskDetailPage() {
   }
 
   // ==========================================
-  // SKELETON LOADER UI
+  // 5. SKELETON LOADER
   // ==========================================
   if (loading) {
     return (
@@ -153,20 +165,23 @@ export default function TaskDetailPage() {
   if (!task) return <p className="p-8 text-center text-red-500 font-bold">{error}</p>
 
   // ==========================================
-  // RENDER THE ACTUAL UI
+  // 6. RENDER UI
   // ==========================================
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
       <div className="grid gap-5 lg:grid-cols-[1.5fr_.8fr]">
         
+        {/* LEFT COLUMN: TASK DETAILS */}
         <article className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 sm:p-8 transition-colors">
+          
           <div className="flex items-start gap-4">
             <span className="grid h-14 w-14 place-items-center rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
               <Icon name="briefcase" size={26} />
             </span>
             <div>
-              <span className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
-                92% skills match
+              {/* Note: Removed the hardcoded "92% skills match" badge to keep the UI honest */}
+              <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-xs font-extrabold text-slate-600 dark:text-slate-300">
+                Open
               </span>
               <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
                 {task.title}
@@ -175,6 +190,7 @@ export default function TaskDetailPage() {
             </div>
           </div>
 
+          {/* Quick Stats Grid */}
           <div className="my-7 grid grid-cols-2 gap-4 border-y border-slate-100 dark:border-slate-700 py-5 sm:grid-cols-3">
             <div className="flex gap-2.5">
               <span className="text-blue-600 dark:text-blue-400"><Icon name="wallet" size={19} /></span>
@@ -187,7 +203,7 @@ export default function TaskDetailPage() {
               <span className="text-blue-600 dark:text-blue-400"><Icon name="clock" size={19} /></span>
               <div>
                 <p className="text-xs text-slate-400 dark:text-slate-500">Duration</p>
-                <p className="mt-0.5 text-sm font-bold text-slate-900 dark:text-slate-100">{task.duration_days} days</p>
+                <p className="mt-0.5 text-sm font-bold text-slate-900 dark:text-slate-100">{task.duration_days} {task.duration_days === 1 ? 'day' : 'days'}</p>
               </div>
             </div>
             <div className="flex gap-2.5">
@@ -199,6 +215,7 @@ export default function TaskDetailPage() {
             </div>
           </div>
 
+          {/* Description */}
           <div className="mb-7 text-sm leading-7 text-slate-600 dark:text-slate-300">
             <h2 className="mb-2 text-base font-extrabold text-slate-950 dark:text-white">About this opportunity</h2>
             <p>{task.description}</p>
@@ -208,7 +225,7 @@ export default function TaskDetailPage() {
             <strong>Good to know:</strong> No formal experience needed. A supervisor will show you what to do.
           </div>
 
-          {/* FIX (Task 6): Anti-scam Report Button */}
+          {/* Anti-scam Report Button */}
           <div className="mt-6 border-t border-slate-100 dark:border-slate-700 pt-4">
             {hasReported ? (
               <p className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
@@ -228,11 +245,12 @@ export default function TaskDetailPage() {
           </div>
         </article>
 
+        {/* RIGHT COLUMN: APPLY ACTION */}
         <aside>
           <div className="sticky top-24 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 shadow-sm transition-colors">
             <p className="text-sm text-slate-500 dark:text-slate-400">You’ll earn</p>
             <p className="mt-1 text-3xl font-extrabold text-slate-950 dark:text-white">R{task.pay_amount.toLocaleString()}</p>
-            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">for {task.duration_days} days of work</p>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">for {task.duration_days} {task.duration_days === 1 ? 'day' : 'days'} of work</p>
             
             <div className="my-5 h-px bg-slate-100 dark:bg-slate-700" />
             
