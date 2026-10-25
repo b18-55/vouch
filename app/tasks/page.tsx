@@ -215,8 +215,24 @@ export default function TasksPage() {
           <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredTasks.map((task) => {
               
-              // Check if this specific task matches the user's skills.
-              const isMatch = task.skills_required?.some((skill) => userSkills.includes(skill))
+              // --- DYNAMIC SKILL MATCHING MATH ---
+              // 1. Lowercase the user's skills for easy comparison.
+              const lowerUserSkills = userSkills.map(s => s.toLowerCase())
+              
+              // 2. Count how many of the task's required skills the user actually has.
+              const matchedSkillsCount = task.skills_required?.filter(skill => 
+                lowerUserSkills.includes(skill.toLowerCase())
+              ).length || 0
+
+              // 3. Calculate the total required skills for this task.
+              const totalRequired = task.skills_required?.length || 0
+              
+              // 4. Calculate the percentage.
+              // (e.g., If they have 2 out of 4 required skills, it's 50%).
+              // If the task requires no skills, default to 0.
+              const matchPercentage = totalRequired > 0 
+                ? Math.round((matchedSkillsCount / totalRequired) * 100) 
+                : 0
 
               return (
                 <button
@@ -230,17 +246,16 @@ export default function TasksPage() {
                     </span>
 
                     <div className="flex items-center gap-2">
-                      {/* Dynamic "Good match" badge (only shows if skills match) */}
-                      {isMatch && (
-                        <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-extrabold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
-                          Good match
+                      {/* Show the real percentage if they match at least one skill. */}
+                      {matchPercentage > 0 ? (
+                        <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900">
+                          {matchPercentage}% match
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-xs font-extrabold text-slate-600 dark:text-slate-300">
+                          Open
                         </span>
                       )}
-                      
-                      {/* FIX: Replaced the fake 92% with a clean "Open" badge */}
-                      <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-xs font-extrabold text-slate-600 dark:text-slate-300">
-                        Open
-                      </span>
                     </div>
                   </div>
 
