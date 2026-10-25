@@ -27,11 +27,13 @@ type Task = {
 }
 
 export default function DashboardPage() {
-  // --- STATE MANAGEMENT ---
+  // ==========================================
+  // 2. STATE MANAGEMENT
+  // ==========================================
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   
-  // Dynamic metrics calculated from the database
+  // Metrics calculated from the database
   const [skillsCount, setSkillsCount] = useState(0)
   const [expCount, setExpCount] = useState(0)
   const [profileStrength, setProfileStrength] = useState(0)
@@ -44,7 +46,7 @@ export default function DashboardPage() {
   const router = useRouter()
 
   // ==========================================
-  // 2. FETCH DATA ON LOAD
+  // 3. FETCH DATA ON LOAD
   // ==========================================
   useEffect(() => {
     const load = async () => {
@@ -60,6 +62,7 @@ export default function DashboardPage() {
         .single()
 
       // Step C: Fetch counts for skills and experiences
+      // We use { count: 'exact', head: true } to just get the number, not the data.
       const { count: skillsCountResult } = await supabase
         .from('skills')
         .select('*', { count: 'exact', head: true })
@@ -84,7 +87,11 @@ export default function DashboardPage() {
         .eq('user_id', session.user.id)
 
       // --- CALCULATE PROFILE STRENGTH (Max 100%) ---
-      // 30% for basic details, 20% for bio, 25% for skills, 25% for experience
+      // The math breakdown:
+      // 30% for basic details (Name + Location)
+      // 20% for bio
+      // 25% for having at least 1 skill
+      // 25% for having at least 1 experience
       let score = 0
       if (data?.full_name && data?.location) score += 30
       if (data?.bio) score += 20
@@ -92,6 +99,8 @@ export default function DashboardPage() {
       if (expCountResult && expCountResult > 0) score += 25
 
       // --- CALCULATE TOTAL EARNINGS ---
+      // Loop through gigs and sum up the amount_zar.
+      // Defaults to 0 if the gigs table is empty.
       const sum = gigsData?.reduce((acc, gig) => acc + (gig.amount_zar || 0), 0) || 0
 
       // Step F: Save to state
@@ -113,13 +122,15 @@ export default function DashboardPage() {
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening'
   const todayDate = new Date().toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
 
-  // --- BREAKDOWN SCORES (Fixed the math so it adds up to 100) ---
+  // --- BREAKDOWN SCORES (For the UI text) ---
+  // We break down the 100% into its 4 pieces so the user understands the math.
+  const basicScore = (profile?.full_name && profile?.location) ? 30 : 0
+  const sharedScore = profile?.bio ? 20 : 0
   const skillsScore = skillsCount > 0 ? 25 : 0
   const gigsScore = expCount > 0 ? 25 : 0
-  const sharedScore = profile?.bio ? 20 : 0
 
   // ==========================================
-  // 3. SKELETON LOADER
+  // 4. SKELETON LOADER
   // ==========================================
   if (loading) {
     return (
@@ -142,7 +153,7 @@ export default function DashboardPage() {
   }
 
   // ==========================================
-  // 4. RENDER UI
+  // 5. RENDER UI
   // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-20">
@@ -159,6 +170,7 @@ export default function DashboardPage() {
         <section className="mt-7 grid gap-5 lg:grid-cols-[1.5fr_1fr_1fr]">
           
           {/* CARD 1: PROFILE TIP */}
+          {/* This card is smart: it changes its text based on what the user is missing. */}
           <div className="relative overflow-hidden rounded-3xl bg-blue-700 p-6 text-white sm:p-8 shadow-sm">
             <div className="relative z-10 max-w-lg">
               <span className="inline-flex rounded-full bg-blue-500/40 px-3 py-1 text-xs font-bold text-blue-50">PROFILE TIP</span>
@@ -189,9 +201,9 @@ export default function DashboardPage() {
               <div className="h-full rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-500" style={{ width: `${profileStrength}%` }} />
             </div>
             
-            {/* Mathematically aligned breakdown */}
+            {/* The breakdown text now adds up to 100 */}
             <p className="mt-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Skills ({skillsScore}/25) · Gigs ({gigsScore}/25) · Profile Shared ({sharedScore}/20)
+              Details ({basicScore}/30) · Skills ({skillsScore}/25) · Gigs ({gigsScore}/25) · Shared ({sharedScore}/20)
             </p>
             
             <ul className="mt-5 space-y-3 text-sm">
