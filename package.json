@@ -11,6 +11,7 @@
   "dependencies": {
     "@google/genai": "^2.30.0",
     "@supabase/supabase-js": "^2.118.0",
+    "canvas-confetti": "^1.9.4",
     "groq-sdk": "^1.6.0",
     "html-to-image": "^1.11.13",
     "next": "16.4.2",
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/turbopack": "^4",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
