@@ -26,12 +26,14 @@ type Task = {
 export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
-  // Teammate's enhancements
+  
+  // Your dynamic enhancements
   const [skillsCount, setSkillsCount] = useState(0)
   const [expCount, setExpCount] = useState(0)
   const [profileStrength, setProfileStrength] = useState(0)
   const [recentTasks, setRecentTasks] = useState<Task[]>([])
-  // Your Task 5 addition
+  
+  // Teammate's Task 5 addition
   const [totalEarned, setTotalEarned] = useState(0)
   const [gigCount, setGigCount] = useState(0)
 
@@ -64,7 +66,7 @@ export default function DashboardPage() {
         .eq('status', 'open')
         .limit(2)
 
-      // Task 5: Fetch completed gigs and compute total earned
+      // Task 5: Fetch completed gigs and compute total earned (From Teammate)
       const { data: gigsData } = await supabase
         .from('gigs')
         .select('amount_zar')
@@ -82,6 +84,7 @@ export default function DashboardPage() {
       setExpCount(expCountResult ?? 0)
       setRecentTasks(taskData || [])
 
+      // Calculate gigs sum (From Teammate)
       const sum = gigsData?.reduce((acc, gig) => acc + (gig.amount_zar || 0), 0) || 0
       setTotalEarned(sum)
       setGigCount(gigsData?.length || 0)
@@ -94,6 +97,11 @@ export default function DashboardPage() {
   const currentHour = new Date().getHours()
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening'
   const todayDate = new Date().toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  // Dynamic Trust Score Breakdown calculation (YOUR code)
+  const skillsScore = Math.min(80, skillsCount * 20) 
+  const gigsScore = Math.min(40, expCount * 20) 
+  const sharedScore = profile?.bio ? 10 : 0 
 
   if (loading) {
     return (
@@ -125,30 +133,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-20">
       
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-5 lg:px-8 transition-colors duration-200">
-        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Your experience counts.</p>
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => router.push('/settings')}
-            className="flex items-center gap-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span>Settings</span>
-          </button>
-          <button onClick={() => supabase.auth.signOut().then(() => router.push('/login'))} className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer">
-            Log out
-          </button>
-          <button 
-            onClick={() => router.push('/profile')}
-            className="grid h-9 w-9 place-items-center rounded-full bg-blue-100 dark:bg-blue-900/60 text-sm font-extrabold text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors cursor-pointer"
-          >
-            {profile?.full_name?.slice(0, 2).toUpperCase() || 'U'}
-          </button>
-        </div>
-      </header>
+      {/* Note: The local header was removed here because AppLayoutWrapper handles it globally */}
 
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
         
@@ -158,8 +143,10 @@ export default function DashboardPage() {
           text="Here's your next best step." 
         />
 
+        {/* 3-COLUMN GRID (Merged) */}
         <section className="mt-7 grid gap-5 lg:grid-cols-[1.5fr_1fr_1fr]">
           
+          {/* CARD 1: PROFILE TIP */}
           <div className="relative overflow-hidden rounded-3xl bg-blue-700 p-6 text-white sm:p-8 shadow-sm">
             <div className="relative z-10 max-w-lg">
               <span className="inline-flex rounded-full bg-blue-500/40 px-3 py-1 text-xs font-bold text-blue-50">PROFILE TIP</span>
@@ -176,6 +163,7 @@ export default function DashboardPage() {
             <div className="absolute -bottom-24 -right-16 h-72 w-72 rounded-full border-[55px] border-blue-600" />
           </div>
 
+          {/* CARD 2: PROFILE STRENGTH (YOUR DYNAMIC CODE) */}
           <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
             <div className="flex items-start justify-between">
               <div>
@@ -187,26 +175,36 @@ export default function DashboardPage() {
             <div className="mt-5 h-2 rounded-full bg-slate-100 dark:bg-slate-700">
               <div className="h-full rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-500" style={{ width: `${profileStrength}%` }} />
             </div>
+            
+            {/* Dynamic Trust Score Breakdown */}
             <p className="mt-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Skills (30/80) · Gigs (0/40) · Profile Shared (10/10)
+              Skills ({skillsScore}/80) · Gigs ({gigsScore}/40) · Profile Shared ({sharedScore}/10)
             </p>
+            
+            {/* Dynamic Checklist */}
             <ul className="mt-5 space-y-3 text-sm">
-              <li className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400"><Icon name="check" size={13} /></span>
-                Basic details added
+              <li className={`flex items-center gap-2 ${profile?.full_name && profile?.location ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
+                <span className={`grid h-5 w-5 place-items-center rounded-full ${profile?.full_name && profile?.location ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400' : 'border border-slate-200 dark:border-slate-700'}`}>
+                  {profile?.full_name && profile?.location && <Icon name="check" size={13} />}
+                </span>
+                {profile?.full_name && profile?.location ? 'Basic details added' : 'Add basic details'}
               </li>
-              <li className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400"><Icon name="check" size={13} /></span>
-                Trust score: {profile?.trust_score ?? 0}/100
+              <li className={`flex items-center gap-2 ${skillsCount > 0 ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
+                <span className={`grid h-5 w-5 place-items-center rounded-full ${skillsCount > 0 ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400' : 'border border-slate-200 dark:border-slate-700'}`}>
+                  {skillsCount > 0 && <Icon name="check" size={13} />}
+                </span>
+                {skillsCount > 0 ? `Skills added (${skillsCount})` : 'Add your first skills'}
               </li>
-              <li className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
-                <span className="h-5 w-5 rounded-full border border-slate-200 dark:border-slate-700" />
-                Add one more experience
+              <li className={`flex items-center gap-2 ${expCount > 0 ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
+                <span className={`grid h-5 w-5 place-items-center rounded-full ${expCount > 0 ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400' : 'border border-slate-200 dark:border-slate-700'}`}>
+                  {expCount > 0 && <Icon name="check" size={13} />}
+                </span>
+                {expCount > 0 ? `Experience logged (${expCount})` : 'Log a completed gig'}
               </li>
             </ul>
           </div>
 
-          {/* Task 5: TOTAL EARNED / EARNINGS LOG CARD */}
+          {/* CARD 3: TOTAL EARNED (TEAMMATE'S CODE) */}
           <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
             <div className="flex items-start justify-between">
               <div>
@@ -256,7 +254,8 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400"><Icon name="briefcase" /></span>
-                    <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">92% match</span>
+                    {/* Changed back to 'Open' to remove the fake 92% match */}
+                    <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-xs font-extrabold text-slate-600 dark:text-slate-300">Open</span>
                   </div>
                   <h3 className="mt-5 text-base font-extrabold text-slate-950 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">{task.title}</h3>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.employer_name}</p>

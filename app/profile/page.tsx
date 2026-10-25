@@ -1,7 +1,6 @@
 'use client'
-// 'use client' is a Next.js directive. It tells Next.js that this component 
-// must run in the browser (Client Component) rather than purely on the server.
-// We need this because we use React hooks (useState, useEffect) and handle clicks.
+// 'use client' is required for this file because we use React hooks (useState, useEffect)
+// and browser APIs (window, navigator) which only run on the client side.
 
 // --- IMPORTS ---
 import { useEffect, useState } from 'react'
@@ -10,7 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { Button, Icon } from '@/components/ui'
 
 // ==========================================
-// 1. TYPESCRIPT TYPES
+// 1. TYPESCRIPT TYPES (Defining our data shapes)
 // ==========================================
 type Profile = {
   full_name: string | null
@@ -47,17 +46,17 @@ export default function ProfilePage() {
   const [experiences, setExperiences] = useState<Experience[]>([])
   const [loading, setLoading] = useState(true)
 
-  // State for the Edit/Delete features
-  const [deletingId, setDeletingId] = useState<string | null>(null) // Tracks which item is being deleted
-  const [editingExp, setEditingExp] = useState<Experience | null>(null) // Holds the experience being edited
-  const [editTitle, setEditTitle] = useState('') // Holds the edited title in the modal
-  const [editType, setEditType] = useState('') // Holds the edited type in the modal
-  const [savingEdit, setSavingEdit] = useState(false) // Shows "Saving..." on the modal button
+  // State for deleting and editing experiences
+  const [deletingId, setDeletingId] = useState<string | null>(null) 
+  const [editingExp, setEditingExp] = useState<Experience | null>(null) 
+  const [editTitle, setEditTitle] = useState('') 
+  const [editType, setEditType] = useState('') 
+  const [editDescription, setEditDescription] = useState('') // Teammate added: State for the description field
+  const [savingEdit, setSavingEdit] = useState(false) 
 
   // --- FETCH DATA ON PAGE LOAD ---
   useEffect(() => {
     const loadProfile = async () => {
-      
       // Step A: Check if the user is actually logged in.
       const { data: { session } } = await supabase.auth.getSession()
       
@@ -103,11 +102,12 @@ export default function ProfilePage() {
 
     // 2. Construct the full URL (e.g., https://vouch.app/p/abc-123)
     const url = `${window.location.origin}/p/${slug}`
+    const text = 'Check out my verified skills on Vouch!'
     
     // 3. Prepare the data to be shared
     const shareData = {
       title: 'My Vouch Profile',
-      text: 'Check out my verified skills on Vouch!',
+      text: text,
       url: url
     }
 
@@ -121,20 +121,21 @@ export default function ProfilePage() {
       }
     } else {
       // 5. Fallback for laptops/desktops: open WhatsApp Web
-      window.open(`https://wa.me/?text=${encodeURIComponent(shareData.text + ' ' + url)}`, '_blank')
+      window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank')
     }
   }
 
   // ==========================================
   // 4. EDIT & DELETE EXPERIENCE LOGIC
   // ==========================================
+  
   const handleDeleteExperience = async (id: string) => {
     // 1. Ask for confirmation before doing anything destructive
     if (!window.confirm('Are you sure you want to delete this experience?')) {
       return
     }
 
-    setDeletingId(id)
+    setDeletingId(id) // Show loading state on the trash can icon
 
     try {
       // 2. Delete the experience itself
@@ -176,6 +177,7 @@ export default function ProfilePage() {
     setEditingExp(exp)
     setEditTitle(exp.title || '')
     setEditType(exp.type || '')
+    setEditDescription(exp.description || '')
   }
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -191,6 +193,7 @@ export default function ProfilePage() {
         .update({
           title: editTitle,
           type: editType,
+          description: editDescription, // Teammate added this
         })
         .eq('id', editingExp.id)
 
@@ -199,7 +202,7 @@ export default function ProfilePage() {
       // Update the local UI state so the new title/type show up instantly
       setExperiences((prev) =>
         prev.map((exp) =>
-          exp.id === editingExp.id ? { ...exp, title: editTitle, type: editType } : exp
+          exp.id === editingExp.id ? { ...exp, title: editTitle, type: editType, description: editDescription } : exp
         )
       )
 
@@ -216,7 +219,6 @@ export default function ProfilePage() {
   // ==========================================
   // 5. SKELETON LOADER
   // ==========================================
-  // We use 'animate-pulse' to make the grey blocks flash.
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 animate-pulse transition-colors duration-300">
@@ -257,15 +259,20 @@ export default function ProfilePage() {
     new Map(skills.map(skill => [skill.name, skill])).values()
   )
 
+  // --- DYNAMIC PROFILE STRENGTH CALCULATION (Teammate's Fix) ---
+  // 30% for basic details, 20% for bio, 25% for skills, 25% for experience
+  let score = 0
+  if (profile?.full_name && profile?.location) score += 30
+  if (profile?.bio) score += 20
+  if (skills.length > 0) score += 25
+  if (experiences.length > 0) score += 25
+
   // ==========================================
   // 6. RENDER THE UI
   // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 transition-colors duration-300">
       
-      {/* Note from Teammate: Removed the local header containing "Back to Dashboard" 
-          to rely on the global layout wrapper instead. */}
-
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
         
         {/* PROFILE HEADER CARD */}
@@ -363,6 +370,9 @@ export default function ProfilePage() {
                         <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                           {exp.type} · {new Date(exp.created_at).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' })}
                         </p>
+                        {exp.description && (
+                           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{exp.description}</p>
+                        )}
                       </div>
 
                       {/* EDIT / DELETE BUTTONS */}
@@ -407,15 +417,19 @@ export default function ProfilePage() {
                   <p className="font-bold">Profile strength</p>
                   <p className="mt-1 text-xs text-slate-400">Self-reported</p>
                 </div>
-                <p className="text-3xl font-extrabold">70%</p>
+                {/* Dynamic Score */}
+                <p className="text-3xl font-extrabold">{score}%</p>
               </div>
               
+              {/* Dynamic Progress Bar */}
               <div className="mt-5 h-2 rounded-full bg-slate-700">
-                <div className="h-full w-[70%] rounded-full bg-blue-500" />
+                <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${score}%` }} />
               </div>
               
               <p className="mt-4 text-xs leading-5 text-slate-300">
-                Add one more experience to reach 80%.
+                {score === 100 
+                  ? 'Your profile is complete and ready to impress!' 
+                  : 'Add more details, skills, or experience to reach 100%.'}
               </p>
             </div>
           </aside>
@@ -423,13 +437,12 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      {/* ==========================================
-          7. EDIT EXPERIENCE MODAL
-          ========================================== */}
+      {/* EDIT EXPERIENCE MODAL */}
       {editingExp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-xl border border-slate-200 dark:border-slate-700">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Experience</h3>
+            
             <form onSubmit={handleSaveEdit} className="mt-4 space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Title / Role</label>
@@ -441,6 +454,7 @@ export default function ProfilePage() {
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-600 outline-none dark:text-white"
                 />
               </div>
+              
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Type / Category</label>
                 <input
@@ -451,6 +465,16 @@ export default function ProfilePage() {
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-600 outline-none dark:text-white"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Description</label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-600 outline-none dark:text-white min-h-[100px]"
+                />
+              </div>
+
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
