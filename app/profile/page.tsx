@@ -1,6 +1,7 @@
 'use client'
-// 'use client' is required for this file because we use React hooks (useState, useEffect)
-// and browser APIs (window, navigator) which only run on the client side.
+// 'use client' is a Next.js directive. It tells Next.js that this component 
+// must run in the browser (Client Component) rather than purely on the server.
+// We need this because we use React hooks (useState, useEffect) and browser APIs.
 
 // --- IMPORTS ---
 import { useEffect, useState } from 'react'
@@ -9,20 +10,24 @@ import { supabase } from '@/lib/supabase'
 import { Button, Icon } from '@/components/ui'
 
 // ==========================================
-// 1. TYPESCRIPT TYPES (Defining our data shapes)
+// 1. TYPESCRIPT TYPES
 // ==========================================
+// Defining the exact shape of our data ensures TypeScript catches errors
+// if we try to access a property that doesn't exist.
+
 type Profile = {
   full_name: string | null
   location: string | null
   bio: string | null
   trust_score: number | null
-  // We added public_slug here so TypeScript knows it exists. 
-  // It is the unique ID we use to generate the shareable URL.
+  // The unique ID used to generate the public shareable URL (/p/[slug]).
   public_slug: string | null 
 }
 
 type Skill = { 
-  id: string // Added so React has a unique key for the map function
+  // The database 'id' is required so React can use it as a unique 'key' 
+  // when mapping through the array to render the pills.
+  id: string 
   name: string 
 }
 
@@ -30,115 +35,115 @@ type Experience = {
   id: string
   title: string
   type: string
-  description?: string // Optional, used in case your teammate passes it
+  description?: string 
   created_at: string 
 }
 
 // ==========================================
-// 2. MAIN PROFILE PAGE COMPONENT
+// 2. MAIN COMPONENT
 // ==========================================
 export default function ProfilePage() {
   const router = useRouter()
   
-  // --- STATE MANAGEMENT ---
+  // --- CORE STATE ---
+  // These hold the fetched data from the database.
   const [profile, setProfile] = useState<Profile | null>(null)
   const [skills, setSkills] = useState<Skill[]>([])
   const [experiences, setExperiences] = useState<Experience[]>([])
+  
+  // Tracks if the initial database fetch is still loading.
   const [loading, setLoading] = useState(true)
 
-  // State for deleting and editing experiences
+  // --- UI INTERACTION STATE ---
+  // Tracks WHICH experience is currently being deleted. This allows us to 
+  // show a loading spinner on that specific trash can icon.
   const [deletingId, setDeletingId] = useState<string | null>(null) 
+  
+  // Tracks the experience currently open in the edit modal.
+  // If this is null, the modal is closed. If it has data, the modal is open.
   const [editingExp, setEditingExp] = useState<Experience | null>(null) 
+  
+  // Controlled inputs for the Edit Modal form.
   const [editTitle, setEditTitle] = useState('') 
   const [editType, setEditType] = useState('') 
-  const [editDescription, setEditDescription] = useState('') // Teammate added: State for the description field
+  const [editDescription, setEditDescription] = useState('') 
+  
+  // Prevents double-submitting the edit form.
   const [savingEdit, setSavingEdit] = useState(false) 
 
-  // --- FETCH DATA ON PAGE LOAD ---
+  // ==========================================
+  // 3. FETCH DATA ON LOAD
+  // ==========================================
   useEffect(() => {
     const loadProfile = async () => {
-      // Step A: Check if the user is actually logged in.
+      // 1. Authenticate the user. If no session, redirect to login.
       const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        router.push('/login')
-        return
-      }
+      if (!session) return router.push('/login')
 
-      // Step B: Fetch Profile, Skills, and Experiences AT THE SAME TIME.
-      // 'Promise.all' is used so we don't wait for one query to finish before starting the next.
+      // 2. Fetch Profile, Skills, and Experiences SIMULTANEOUSLY.
+      // 'Promise.all' fires all 3 database queries at the exact same time 
+      // instead of waiting for one to finish before starting the next.
       const [profileRes, skillsRes, expRes] = await Promise.all([
-        
-        // 1. Get the user's basic info.
-        // We use .select('*') so it automatically grabs the public_slug.
         supabase.from('profiles').select('*').eq('id', session.user.id).single(),
-        
-        // 2. Fetch the 'id' along with the 'name' so React has a unique key for the map function.
         supabase.from('skills').select('id, name').eq('profile_id', session.user.id),
-        
-        // 3. Get all experiences linked to this user, sorted newest first.
         supabase.from('experiences').select('*').eq('profile_id', session.user.id).order('created_at', { ascending: false })
       ])
 
-      // Save the fetched data into our React state.
+      // 3. Save the data to React state to trigger a re-render.
       if (profileRes.data) setProfile(profileRes.data)
       if (skillsRes.data) setSkills(skillsRes.data)
       if (expRes.data) setExperiences(expRes.data)
 
-      // Stop the skeleton loader.
+      // 4. Stop the skeleton loader.
       setLoading(false)
     }
     
     loadProfile()
-  }, [router]) // Re-run if the router changes.
+  }, [router]) 
 
   // ==========================================
-  // 3. SHARE PROFILE LOGIC
+  // 4. SHARE PROFILE LOGIC
   // ==========================================
   const shareProfile = async () => {
-    // 1. Get the unique slug from the profile state.
     const slug = profile?.public_slug
     if (!slug) return alert("Profile link not ready yet. Try reloading.")
 
-    // 2. Construct the full URL (e.g., https://vouch.app/p/abc-123)
     const url = `${window.location.origin}/p/${slug}`
     const text = 'Check out my verified skills on Vouch!'
     
-    // 3. Prepare the data to be shared
     const shareData = {
       title: 'My Vouch Profile',
       text: text,
       url: url
     }
 
-    // 4. Use the native share sheet on phones.
+    // Use the native OS share sheet on mobile devices (iOS/Android).
+    // This allows the user to send the link via WhatsApp, SMS, Email, etc.
     if (navigator.share) {
       try { 
         await navigator.share(shareData) 
       } catch (err) { 
-        // If the user cancels the share, we just log it quietly.
-        console.log('Share cancelled') 
+        console.log('Share cancelled by user') 
       }
     } else {
-      // 5. Fallback for laptops/desktops: open WhatsApp Web
+      // Fallback for laptops/desktops: open WhatsApp Web directly.
       window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank')
     }
   }
 
   // ==========================================
-  // 4. EDIT & DELETE EXPERIENCE LOGIC
+  // 5. EDIT & DELETE LOGIC
   // ==========================================
   
   const handleDeleteExperience = async (id: string) => {
-    // 1. Ask for confirmation before doing anything destructive
-    if (!window.confirm('Are you sure you want to delete this experience?')) {
-      return
-    }
+    // 1. Safety check: Ask for confirmation.
+    if (!window.confirm('Are you sure you want to delete this experience?')) return
 
-    setDeletingId(id) // Show loading state on the trash can icon
+    // 2. Set the loading state for this specific card.
+    setDeletingId(id) 
 
     try {
-      // 2. Delete the experience itself
+      // 3. Delete the experience itself.
       const { error: expError } = await supabase
         .from('experiences')
         .delete()
@@ -146,34 +151,36 @@ export default function ProfilePage() {
 
       if (expError) throw expError
 
-      // 3. BELT-AND-SUSPENDERS: Also delete the linked skills.
-      //
-      // Why this explicit delete exists when we have ON DELETE CASCADE:
-      // - Cascade SHOULD handle this automatically, but ONLY if the foreign 
-      //   key constraint is perfectly configured on the database.
-      // - If misconfigured, skills stay behind as orphans.
-      // - We hit exactly this bug live. Deleting here guarantees cleanup 
-      //   regardless of the database constraint state. If cascade IS working, 
-      //   this call matches 0 rows and does nothing.
+      // 4. BELT-AND-SUSPENDERS:
+      // The database has ON DELETE CASCADE configured, which should 
+      // automatically delete linked skills. However, if that constraint 
+      // is ever misconfigured, we manually delete them here to prevent 
+      // orphaned skills from lingering on the profile.
       await supabase
         .from('skills')
         .delete()
         .eq('experience_id', id)
 
-      // 4. Update the local UI state so the card disappears instantly
+      // 5. Update the UI instantly by removing the deleted item from state.
       setExperiences((prev) => prev.filter((exp) => exp.id !== id))
+
+      // 6. REAL-TIME SYNC: Dispatch a custom browser event.
+      // The global Sidebar and Dashboard are listening for this event. 
+      // When they hear it, they will re-fetch their data so the Profile 
+      // Strength percentage updates instantly without a page refresh.
+      window.dispatchEvent(new Event('vouch-data-updated'))
 
     } catch (err: any) {
       console.error('Error deleting experience:', err)
       alert(err.message || 'Failed to delete experience.')
     } finally {
-      // Stop the loading spinner on the delete button
+      // 7. Clear the loading state.
       setDeletingId(null)
     }
   }
 
   const handleOpenEdit = (exp: Experience) => {
-    // Set the currently editing experience and pre-fill the form fields
+    // Pre-fill the modal form with the current experience data.
     setEditingExp(exp)
     setEditTitle(exp.title || '')
     setEditType(exp.type || '')
@@ -187,27 +194,31 @@ export default function ProfilePage() {
     setSavingEdit(true)
 
     try {
-      // Update the row in Supabase
+      // 1. Update the database row.
       const { error } = await supabase
         .from('experiences')
         .update({
           title: editTitle,
           type: editType,
-          description: editDescription, // Teammate added this
+          description: editDescription, 
         })
         .eq('id', editingExp.id)
 
       if (error) throw error
 
-      // Update the local UI state so the new title/type show up instantly
+      // 2. Update the UI state so the user sees the changes immediately.
       setExperiences((prev) =>
         prev.map((exp) =>
           exp.id === editingExp.id ? { ...exp, title: editTitle, type: editType, description: editDescription } : exp
         )
       )
 
-      // Close the modal
+      // 3. Close the modal.
       setEditingExp(null)
+
+      // 4. REAL-TIME SYNC: Dispatch the event so the Sidebar/Dashboard update.
+      window.dispatchEvent(new Event('vouch-data-updated'))
+
     } catch (err: any) {
       console.error('Error updating experience:', err)
       alert(err.message || 'Failed to update experience.')
@@ -217,8 +228,9 @@ export default function ProfilePage() {
   }
 
   // ==========================================
-  // 5. SKELETON LOADER
+  // 6. LOADING SKELETON
   // ==========================================
+  // Shows a pulsing placeholder UI while waiting for the database fetch.
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 animate-pulse transition-colors duration-300">
@@ -236,31 +248,29 @@ export default function ProfilePage() {
               <div className="mt-6 h-4 w-3/4 bg-slate-200 dark:bg-slate-800 rounded" />
             </div>
           </div>
-          <div className="mt-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-            <div className="space-y-5">
-              <div className="h-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl" />
-              <div className="h-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl" />
-            </div>
-            <div className="h-48 bg-slate-800 dark:bg-slate-800 rounded-2xl opacity-10" />
-          </div>
         </main>
       </div>
     )
   }
 
-  // --- HELPER LOGIC ---
-  // Grabs the first letter of the first and last name (e.g., "Thabo Mokoena" -> "TM")
+  // ==========================================
+  // 7. HELPER CALCULATIONS
+  // ==========================================
+  
+  // Extracts initials for the avatar (e.g., "Thabo Mokoena" -> "TM").
   const initials = profile?.full_name 
     ? profile.full_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() 
     : 'U'
 
-  // Deduplicates skills just in case the AI generated the same skill twice.
+  // DEDUPLICATION: If the AI extracted "Customer Service" from two different 
+  // experiences, the database will have two separate rows. We use a Map to 
+  // deduplicate them by name so the UI only shows each skill once.
   const uniqueSkills = Array.from(
     new Map(skills.map(skill => [skill.name, skill])).values()
   )
 
-  // --- DYNAMIC PROFILE STRENGTH CALCULATION (Teammate's Fix) ---
-  // 30% for basic details, 20% for bio, 25% for skills, 25% for experience
+  // DYNAMIC PROFILE STRENGTH MATH:
+  // Basic Details = 30%, Bio = 20%, Skills = 25%, Experience = 25%.
   let score = 0
   if (profile?.full_name && profile?.location) score += 30
   if (profile?.bio) score += 20
@@ -268,14 +278,14 @@ export default function ProfilePage() {
   if (experiences.length > 0) score += 25
 
   // ==========================================
-  // 6. RENDER THE UI
+  // 8. RENDER UI
   // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 transition-colors duration-300">
       
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
         
-        {/* PROFILE HEADER CARD */}
+        {/* --- PROFILE HEADER CARD --- */}
         <div className="overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors duration-300">
           <div className="h-28 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500" />
           
@@ -300,7 +310,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               
-              {/* ACTION BUTTONS: Edit + Share */}
+              {/* Action Buttons */}
               <div className="flex gap-2">
                 <Button kind="secondary" onClick={() => router.push('/profile/edit')}>
                   <Icon name="edit" size={17} />
@@ -320,7 +330,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* MAIN GRID */}
+        {/* --- MAIN GRID --- */}
         <div className="mt-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
           
           <div className="space-y-5">
@@ -363,6 +373,7 @@ export default function ProfilePage() {
                       key={exp.id}
                       className="relative flex items-start justify-between gap-4 pl-7 before:absolute before:left-[5px] before:top-6 before:h-[calc(100%+1.5rem)] before:w-px before:bg-slate-200 dark:before:bg-slate-700 last:before:hidden" 
                     >
+                      {/* Timeline dot */}
                       <span className="absolute left-0 top-1 h-3 w-3 rounded-full border-[3px] border-blue-100 dark:border-slate-800 bg-blue-600" />
                       
                       <div className="flex-1">
@@ -375,7 +386,7 @@ export default function ProfilePage() {
                         )}
                       </div>
 
-                      {/* EDIT / DELETE BUTTONS */}
+                      {/* Edit / Delete Buttons */}
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
@@ -407,21 +418,17 @@ export default function ProfilePage() {
             </section>
           </div>
 
-          {/* --- RIGHT COLUMN --- */}
+          {/* --- PROFILE STRENGTH SIDEBAR --- */}
           <aside className="space-y-5">
-            
-            {/* PROFILE STRENGTH CARD */}
             <div className="rounded-2xl bg-slate-950 dark:bg-slate-900 border dark:border-slate-800 p-6 text-white transition-colors duration-300">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-bold">Profile strength</p>
                   <p className="mt-1 text-xs text-slate-400">Self-reported</p>
                 </div>
-                {/* Dynamic Score */}
                 <p className="text-3xl font-extrabold">{score}%</p>
               </div>
               
-              {/* Dynamic Progress Bar */}
               <div className="mt-5 h-2 rounded-full bg-slate-700">
                 <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${score}%` }} />
               </div>
@@ -437,7 +444,8 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      {/* EDIT EXPERIENCE MODAL */}
+      {/* --- EDIT EXPERIENCE MODAL --- */}
+      {/* Only renders if editingExp state is not null. */}
       {editingExp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-xl border border-slate-200 dark:border-slate-700">

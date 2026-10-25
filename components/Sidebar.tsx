@@ -23,8 +23,6 @@ export default function Sidebar() {
       if (!session) return
 
       // We use Promise.all to run all 3 queries in parallel (much faster).
-      // We only use { count: 'exact', head: true } for skills/experiences 
-      // because we just need the number, not the actual data rows.
       const [profileRes, skillsRes, expRes] = await Promise.all([
         supabase.from('profiles').select('full_name, location, bio').eq('id', session.user.id).single(),
         supabase.from('skills').select('*', { count: 'exact', head: true }).eq('profile_id', session.user.id),
@@ -46,9 +44,16 @@ export default function Sidebar() {
       setStrength(score)
     }
     
-    // We add pathname as a dependency so the score recalculates every time 
-    // the user clicks a new page (e.g., after they add a skill).
+    // 1. Fetch on initial load
     fetchStrength()
+
+    // 2. NEW: Listen for global data updates from other pages
+    window.addEventListener('vouch-data-updated', fetchStrength)
+
+    // 3. Cleanup listener when component unmounts or pathname changes
+    return () => {
+      window.removeEventListener('vouch-data-updated', fetchStrength)
+    }
   }, [pathname])
 
   // Navigation links array

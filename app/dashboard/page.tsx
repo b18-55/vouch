@@ -62,7 +62,6 @@ export default function DashboardPage() {
         .single()
 
       // Step C: Fetch counts for skills and experiences
-      // We use { count: 'exact', head: true } to just get the number, not the data.
       const { count: skillsCountResult } = await supabase
         .from('skills')
         .select('*', { count: 'exact', head: true })
@@ -87,11 +86,6 @@ export default function DashboardPage() {
         .eq('user_id', session.user.id)
 
       // --- CALCULATE PROFILE STRENGTH (Max 100%) ---
-      // The math breakdown:
-      // 30% for basic details (Name + Location)
-      // 20% for bio
-      // 25% for having at least 1 skill
-      // 25% for having at least 1 experience
       let score = 0
       if (data?.full_name && data?.location) score += 30
       if (data?.bio) score += 20
@@ -99,8 +93,6 @@ export default function DashboardPage() {
       if (expCountResult && expCountResult > 0) score += 25
 
       // --- CALCULATE TOTAL EARNINGS ---
-      // Loop through gigs and sum up the amount_zar.
-      // Defaults to 0 if the gigs table is empty.
       const sum = gigsData?.reduce((acc, gig) => acc + (gig.amount_zar || 0), 0) || 0
 
       // Step F: Save to state
@@ -114,7 +106,17 @@ export default function DashboardPage() {
 
       setLoading(false)
     }
+    
+    // 1. Fetch on initial load
     load()
+
+    // 2. NEW: Listen for the custom event from other pages
+    window.addEventListener('vouch-data-updated', load)
+
+    // 3. Cleanup the listener when the component unmounts
+    return () => {
+      window.removeEventListener('vouch-data-updated', load)
+    }
   }, [router])
 
   // --- DYNAMIC GREETING ---
@@ -123,7 +125,6 @@ export default function DashboardPage() {
   const todayDate = new Date().toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
 
   // --- BREAKDOWN SCORES (For the UI text) ---
-  // We break down the 100% into its 4 pieces so the user understands the math.
   const basicScore = (profile?.full_name && profile?.location) ? 30 : 0
   const sharedScore = profile?.bio ? 20 : 0
   const skillsScore = skillsCount > 0 ? 25 : 0
@@ -170,7 +171,6 @@ export default function DashboardPage() {
         <section className="mt-7 grid gap-5 lg:grid-cols-[1.5fr_1fr_1fr]">
           
           {/* CARD 1: PROFILE TIP */}
-          {/* This card is smart: it changes its text based on what the user is missing. */}
           <div className="relative overflow-hidden rounded-3xl bg-blue-700 p-6 text-white sm:p-8 shadow-sm">
             <div className="relative z-10 max-w-lg">
               <span className="inline-flex rounded-full bg-blue-500/40 px-3 py-1 text-xs font-bold text-blue-50">PROFILE TIP</span>
@@ -201,7 +201,6 @@ export default function DashboardPage() {
               <div className="h-full rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-500" style={{ width: `${profileStrength}%` }} />
             </div>
             
-            {/* The breakdown text now adds up to 100 */}
             <p className="mt-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
               Details ({basicScore}/30) · Skills ({skillsScore}/25) · Gigs ({gigsScore}/25) · Shared ({sharedScore}/20)
             </p>

@@ -11,10 +11,10 @@ export default function SettingsPage() {
   const router = useRouter();
   
   // --- UI STATE ---
-  const [openSection, setOpenSection] = useState<string | null>(null); // Tracks which accordion is open (e.g., "personal", "notifications")
-  const [loading, setLoading] = useState(false); // Loading state for saving profile details
-  const [fetchingUser, setFetchingUser] = useState(true); // Loading state for initial page load skeleton
-  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null); // Global status message
+  const [openSection, setOpenSection] = useState<string | null>(null); 
+  const [loading, setLoading] = useState(false); 
+  const [fetchingUser, setFetchingUser] = useState(true); 
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null); 
 
   // --- USER DATA STATE ---
   const [fullName, setFullName] = useState("");
@@ -30,7 +30,6 @@ export default function SettingsPage() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // --- NOTIFICATION PREFERENCES STATE ---
-  // Defaults to true, but will be overwritten by localStorage on load
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [pushAlerts, setPushAlerts] = useState(true);
 
@@ -50,15 +49,13 @@ export default function SettingsPage() {
 
     const fetchUserData = async () => {
       try {
-        // Get the current logged-in user session
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
-          router.push("/login"); // Kick to login if no session
+          router.push("/login");
           return;
         }
         setEmail(session.user.email || "");
 
-        // Fetch profile data from the database
         const { data: profile } = await supabase
           .from("profiles")
           .select("full_name, location")
@@ -85,7 +82,6 @@ export default function SettingsPage() {
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
-    // Add or remove the 'dark' class on the <html> tag and save preference
     if (newMode) {
       document.documentElement.classList.add("dark");
       localStorage.setItem("theme", "dark");
@@ -132,8 +128,6 @@ export default function SettingsPage() {
       if (!session?.user) return router.push("/login");
 
       // Upsert means: If the row exists, update it. If it doesn't, create it.
-      // FIX APPLIED: Removed 'updated_at: new Date().toISOString()' 
-      // This was causing a schema cache error because our database table doesn't have that column.
       const { error } = await supabase.from("profiles").upsert({
         id: session.user.id,
         full_name: fullName,
@@ -144,6 +138,17 @@ export default function SettingsPage() {
       
       setStatusMessage({ type: "success", text: "Details saved successfully." });
       setOpenSection(null); // Close the accordion on success
+
+      // THE ARCHITECTURAL FIX: Global State Sync via Custom Events.
+      // React state is component-scoped. When we update the user's name here, 
+      // the Sidebar and Dashboard components are completely unaware of it.
+      // Instead of prop-drilling or adding a heavy state management library (like Redux), 
+      // we dispatch a lightweight custom DOM event. 
+      // The Sidebar and Dashboard have event listeners setup that listen for this 
+      // specific string. When they hear it, they trigger their own database fetches 
+      // to recalculate the Profile Strength percentage instantly.
+      window.dispatchEvent(new Event('vouch-data-updated'));
+
     } catch (err: any) {
       setStatusMessage({ type: "error", text: err.message || "An error occurred." });
     } finally {
@@ -160,12 +165,11 @@ export default function SettingsPage() {
     setPasswordMessage(null);
 
     try {
-      // Supabase handles the encryption and validation automatically.
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       
       setPasswordMessage({ type: "success", text: "Password updated successfully." });
-      setNewPassword(""); // Clear the input after success
+      setNewPassword(""); 
     } catch (err: any) {
       setPasswordMessage({ type: "error", text: err.message || "Failed to update password." });
     } finally {
@@ -176,7 +180,6 @@ export default function SettingsPage() {
   // ==========================================
   // 6. SKELETON LOADER
   // ==========================================
-  // Shows pulsing gray blocks while fetching data to prevent layout shift
   if (fetchingUser) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8 animate-pulse">
@@ -199,7 +202,6 @@ export default function SettingsPage() {
     );
   }
 
-  // Helper to generate initials for the avatar (e.g., "Hazel Ntuli" -> "HN")
   const initials = fullName ? fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "U";
 
   // ==========================================
@@ -212,7 +214,6 @@ export default function SettingsPage() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Manage your account and preferences.</p>
       </div>
 
-      {/* Global Success/Error Message */}
       {statusMessage && (
         <div className={`mb-6 p-4 rounded-xl text-sm font-bold border ${
           statusMessage.type === "success" 
@@ -225,10 +226,8 @@ export default function SettingsPage() {
 
       <div className="space-y-6">
         
-        {/* MAIN PROFILE CARD (Accordions) */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
           
-          {/* User Header */}
           <div className="flex items-center gap-4 p-5 border-b border-slate-100 dark:border-slate-800">
             <div className="grid h-12 w-12 place-items-center rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-extrabold">
               {initials}
@@ -247,7 +246,6 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
                   <Icon name="profile" size={18} /> Personal details
                 </div>
-                {/* Chevron rotates 90 degrees when section is open */}
                 <span className={`transition-transform duration-200 ${openSection === "personal" ? "rotate-90" : ""}`}>
                   <Icon name="chevron" size={16} />
                 </span>
@@ -284,7 +282,6 @@ export default function SettingsPage() {
                       <span className="block text-sm font-bold text-slate-700 dark:text-slate-300">Email Updates</span>
                       <span className="block text-xs text-slate-500 dark:text-slate-400">Receive weekly gig matches.</span>
                     </div>
-                    {/* Custom Toggle Switch UI */}
                     <button type="button" onClick={toggleEmailAlerts} className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${emailAlerts ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"}`}>
                       <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${emailAlerts ? "translate-x-5" : "translate-x-0.5"} mt-0.5`} />
                     </button>
@@ -339,21 +336,22 @@ export default function SettingsPage() {
                   <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
                     Your data is securely stored. We do not share your personal details with employers without your permission.
                   </p>
+                  
                   <form onSubmit={handlePasswordUpdate} className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700">
                     <p className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Change Password</p>
-                    {/* Enforced 8 character minimum */}
                     <input 
                       type="password" 
                       value={newPassword} 
                       onChange={(e) => setNewPassword(e.target.value)} 
                       placeholder="Enter new password (min 8 chars)" 
                       required
-                      minLength={8} 
+                      minLength={8}
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white" 
                     />
                     <button type="submit" disabled={updatingPassword} className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition">
                       {updatingPassword ? "Updating..." : "Update Password"}
                     </button>
+                    
                     {passwordMessage && (
                       <p className={`text-xs font-bold mt-2 ${passwordMessage.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
                         {passwordMessage.text}
@@ -366,10 +364,9 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* HELP & ABOUT SECTION (Accordions) */}
+        {/* HELP & ABOUT SECTION */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm divide-y divide-slate-100 dark:divide-slate-800">
           
-          {/* Help Centre Accordion */}
           <div>
             <button onClick={() => setOpenSection(openSection === "help" ? null : "help")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
               <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
@@ -394,7 +391,6 @@ export default function SettingsPage() {
             )}
           </div>
           
-          {/* About Vouch Accordion (FNB mention removed) */}
           <div>
             <button onClick={() => setOpenSection(openSection === "about" ? null : "about")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
               <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
@@ -427,7 +423,6 @@ export default function SettingsPage() {
           Log out
         </button>
 
-        {/* FOOTER TEXT */}
         <div className="pt-6 pb-2 text-center">
           <p className="text-xs font-semibold text-slate-400 dark:text-slate-600">
             Empowering informal work through verified skills.
