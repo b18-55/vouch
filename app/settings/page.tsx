@@ -1,4 +1,6 @@
 "use client";
+// 'use client' is required because we use React state (useState), lifecycle events (useEffect), 
+// and browser APIs (localStorage, document). It runs entirely on the client side.
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -9,10 +11,10 @@ export default function SettingsPage() {
   const router = useRouter();
   
   // --- UI STATE ---
-  const [openSection, setOpenSection] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [fetchingUser, setFetchingUser] = useState(true);
-  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [openSection, setOpenSection] = useState<string | null>(null); // Tracks which accordion is open (e.g., "personal", "notifications")
+  const [loading, setLoading] = useState(false); // Loading state for saving profile details
+  const [fetchingUser, setFetchingUser] = useState(true); // Loading state for initial page load skeleton
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null); // Global status message
 
   // --- USER DATA STATE ---
   const [fullName, setFullName] = useState("");
@@ -27,25 +29,36 @@ export default function SettingsPage() {
   // --- DARK MODE STATE ---
   const [isDarkMode, setIsDarkMode] = useState(false);
 
+  // --- NOTIFICATION PREFERENCES STATE ---
+  // Defaults to true, but will be overwritten by localStorage on load
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [pushAlerts, setPushAlerts] = useState(true);
+
   // ==========================================
-  // 1. LOAD USER DATA & THEME
+  // 1. LOAD USER DATA & PREFERENCES
   // ==========================================
   useEffect(() => {
-    // Check if dark mode is currently active on the HTML tag
+    // Check if the 'dark' class is currently on the HTML tag to set the toggle switch correctly
     setIsDarkMode(document.documentElement.classList.contains("dark"));
+
+    // Load notification preferences from localStorage so they persist on refresh
+    const savedEmailAlerts = localStorage.getItem("vouch_email_alerts");
+    const savedPushAlerts = localStorage.getItem("vouch_push_alerts");
+    
+    if (savedEmailAlerts !== null) setEmailAlerts(savedEmailAlerts === "true");
+    if (savedPushAlerts !== null) setPushAlerts(savedPushAlerts === "true");
 
     const fetchUserData = async () => {
       try {
+        // Get the current logged-in user session
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
-          router.push("/login");
+          router.push("/login"); // Kick to login if no session
           return;
         }
         setEmail(session.user.email || "");
 
-        // Fetch profile data. 
-        // Note from teammate: 'phone' and 'portfolio_url' were removed from this query 
-        // because those columns don't exist in the database and were causing errors.
+        // Fetch profile data from the database
         const { data: profile } = await supabase
           .from("profiles")
           .select("full_name, location")
@@ -67,12 +80,12 @@ export default function SettingsPage() {
   }, [router]);
 
   // ==========================================
-  // 2. TOGGLE DARK MODE
+  // 2. TOGGLE FUNCTIONS
   // ==========================================
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
-    
+    // Add or remove the 'dark' class on the <html> tag and save preference
     if (newMode) {
       document.documentElement.classList.add("dark");
       localStorage.setItem("theme", "dark");
@@ -80,6 +93,22 @@ export default function SettingsPage() {
       document.documentElement.classList.remove("dark");
       localStorage.setItem("theme", "light");
     }
+  };
+
+  const toggleEmailAlerts = () => {
+    const newVal = !emailAlerts;
+    setEmailAlerts(newVal);
+    localStorage.setItem("vouch_email_alerts", String(newVal));
+    // Dispatch custom event to tell the HeaderActions bell to update instantly
+    window.dispatchEvent(new Event("notificationsUpdated")); 
+  };
+
+  const togglePushAlerts = () => {
+    const newVal = !pushAlerts;
+    setPushAlerts(newVal);
+    localStorage.setItem("vouch_push_alerts", String(newVal));
+    // Dispatch custom event to tell the HeaderActions bell to update instantly
+    window.dispatchEvent(new Event("notificationsUpdated")); 
   };
 
   // ==========================================
@@ -103,12 +132,12 @@ export default function SettingsPage() {
       if (!session?.user) return router.push("/login");
 
       // Upsert means: If the row exists, update it. If it doesn't, create it.
-      // We removed 'phone' and 'portfolio_url' here as well to prevent crashes.
+      // FIX APPLIED: Removed 'updated_at: new Date().toISOString()' 
+      // This was causing a schema cache error because our database table doesn't have that column.
       const { error } = await supabase.from("profiles").upsert({
         id: session.user.id,
         full_name: fullName,
         location: location,
-        updated_at: new Date().toISOString(),
       });
 
       if (error) throw error;
@@ -123,7 +152,7 @@ export default function SettingsPage() {
   };
 
   // ==========================================
-  // 5. UPDATE PASSWORD (Added for Account Security)
+  // 5. UPDATE PASSWORD
   // ==========================================
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,11 +162,10 @@ export default function SettingsPage() {
     try {
       // Supabase handles the encryption and validation automatically.
       const { error } = await supabase.auth.updateUser({ password: newPassword });
-      
       if (error) throw error;
       
       setPasswordMessage({ type: "success", text: "Password updated successfully." });
-      setNewPassword(""); // Clear the input
+      setNewPassword(""); // Clear the input after success
     } catch (err: any) {
       setPasswordMessage({ type: "error", text: err.message || "Failed to update password." });
     } finally {
@@ -148,6 +176,7 @@ export default function SettingsPage() {
   // ==========================================
   // 6. SKELETON LOADER
   // ==========================================
+  // Shows pulsing gray blocks while fetching data to prevent layout shift
   if (fetchingUser) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8 animate-pulse">
@@ -155,7 +184,6 @@ export default function SettingsPage() {
           <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 rounded" />
           <div className="h-4 w-64 bg-slate-200 dark:bg-slate-800 rounded" />
         </div>
-        
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
             <div className="flex items-center gap-4">
@@ -165,16 +193,13 @@ export default function SettingsPage() {
                 <div className="h-4 w-48 bg-slate-200 dark:bg-slate-800 rounded" />
               </div>
             </div>
-            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
-            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
-            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
           </div>
         </div>
       </div>
     );
   }
 
-  // Helper to generate initials for the avatar
+  // Helper to generate initials for the avatar (e.g., "Hazel Ntuli" -> "HN")
   const initials = fullName ? fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "U";
 
   // ==========================================
@@ -200,7 +225,7 @@ export default function SettingsPage() {
 
       <div className="space-y-6">
         
-        {/* PROFILE CARD (Accordions) */}
+        {/* MAIN PROFILE CARD (Accordions) */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
           
           {/* User Header */}
@@ -222,6 +247,7 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
                   <Icon name="profile" size={18} /> Personal details
                 </div>
+                {/* Chevron rotates 90 degrees when section is open */}
                 <span className={`transition-transform duration-200 ${openSection === "personal" ? "rotate-90" : ""}`}>
                   <Icon name="chevron" size={16} />
                 </span>
@@ -240,7 +266,43 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {/* SECTION 2: Appearance (Dark Mode) */}
+            {/* SECTION 2: Notifications */}
+            <div>
+              <button onClick={() => setOpenSection(openSection === "notifications" ? null : "notifications")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                  <Icon name="bell" size={18} /> Notifications
+                </div>
+                <span className={`transition-transform duration-200 ${openSection === "notifications" ? "rotate-90" : ""}`}>
+                  <Icon name="chevron" size={16} />
+                </span>
+              </button>
+              
+              {openSection === "notifications" && (
+                <div className="p-5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="block text-sm font-bold text-slate-700 dark:text-slate-300">Email Updates</span>
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">Receive weekly gig matches.</span>
+                    </div>
+                    {/* Custom Toggle Switch UI */}
+                    <button type="button" onClick={toggleEmailAlerts} className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${emailAlerts ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"}`}>
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${emailAlerts ? "translate-x-5" : "translate-x-0.5"} mt-0.5`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <div>
+                      <span className="block text-sm font-bold text-slate-700 dark:text-slate-300">Gig Matches</span>
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">Get notified when a task matches your skills.</span>
+                    </div>
+                    <button type="button" onClick={togglePushAlerts} className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${pushAlerts ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"}`}>
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${pushAlerts ? "translate-x-5" : "translate-x-0.5"} mt-0.5`} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 3: Appearance */}
             <div>
               <button onClick={() => setOpenSection(openSection === "appearance" ? null : "appearance")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                 <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
@@ -261,7 +323,7 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {/* SECTION 3: Privacy & Security (Password Change) */}
+            {/* SECTION 4: Privacy & Security */}
             <div>
               <button onClick={() => setOpenSection(openSection === "privacy" ? null : "privacy")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                 <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
@@ -277,23 +339,21 @@ export default function SettingsPage() {
                   <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
                     Your data is securely stored. We do not share your personal details with employers without your permission.
                   </p>
-                  
-                  {/* PASSWORD CHANGE FORM */}
                   <form onSubmit={handlePasswordUpdate} className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700">
                     <p className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Change Password</p>
+                    {/* Enforced 8 character minimum */}
                     <input 
                       type="password" 
                       value={newPassword} 
                       onChange={(e) => setNewPassword(e.target.value)} 
-                      placeholder="Enter new password (min 6 chars)" 
+                      placeholder="Enter new password (min 8 chars)" 
                       required
-                      minLength={6}
+                      minLength={8} 
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white" 
                     />
                     <button type="submit" disabled={updatingPassword} className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition">
                       {updatingPassword ? "Updating..." : "Update Password"}
                     </button>
-                    
                     {passwordMessage && (
                       <p className={`text-xs font-bold mt-2 ${passwordMessage.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
                         {passwordMessage.text}
@@ -306,10 +366,73 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* LOGOUT */}
+        {/* HELP & ABOUT SECTION (Accordions) */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm divide-y divide-slate-100 dark:divide-slate-800">
+          
+          {/* Help Centre Accordion */}
+          <div>
+            <button onClick={() => setOpenSection(openSection === "help" ? null : "help")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+              <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                <Icon name="arrow" size={18} /> Help centre
+              </div>
+              <span className={`text-slate-400 transition-transform duration-200 ${openSection === "help" ? "rotate-90" : ""}`}>
+                <Icon name="chevron" size={16} />
+              </span>
+            </button>
+            
+            {openSection === "help" && (
+              <div className="p-5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800">
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                  Need help with Vouch? We're here for you.
+                </p>
+                <ul className="text-sm text-slate-600 dark:text-slate-400 list-disc pl-5 space-y-1">
+                  <li>Email us at <span className="font-bold text-blue-600 dark:text-blue-400">support@vouch.app</span></li>
+                  <li>Read our FAQ on the main website</li>
+                  <li>Report a bug directly from the app</li>
+                </ul>
+              </div>
+            )}
+          </div>
+          
+          {/* About Vouch Accordion (FNB mention removed) */}
+          <div>
+            <button onClick={() => setOpenSection(openSection === "about" ? null : "about")} className="flex w-full items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+              <div className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                <Icon name="briefcase" size={18} /> About Vouch
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-400">v0.9.0</span>
+                <span className={`text-slate-400 transition-transform duration-200 ${openSection === "about" ? "rotate-90" : ""}`}>
+                  <Icon name="chevron" size={16} />
+                </span>
+              </div>
+            </button>
+
+            {openSection === "about" && (
+              <div className="p-5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p>
+                  Vouch is a micro-internship and skills-verification platform that connects young people to real income. 
+                </p>
+                <p className="mt-2">
+                  We help you turn your informal hustle, volunteer work, and daily grind into a verified, employer-ready profile using AI skill extraction. 
+                </p>
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* LOGOUT BUTTON */}
         <button onClick={handleLogout} className="w-full py-4 text-center text-sm font-bold text-rose-600 dark:text-rose-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors shadow-sm">
           Log out
         </button>
+
+        {/* FOOTER TEXT */}
+        <div className="pt-6 pb-2 text-center">
+          <p className="text-xs font-semibold text-slate-400 dark:text-slate-600">
+            Empowering informal work through verified skills.
+          </p>
+        </div>
 
       </div>
     </div>

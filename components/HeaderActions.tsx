@@ -9,21 +9,17 @@ import { Icon } from '@/components/ui'
 export default function HeaderActions() {
   const [isNotifOpen, setIsNotifOpen] = useState(false)
   const [initials, setInitials] = useState('U')
+  
+  // State to track if the user has enabled push notifications in Settings
+  const [alertsEnabled, setAlertsEnabled] = useState(true)
+
   const router = useRouter()
   
   // useRef is used to detect clicks outside the dropdown to close it.
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // --- MOCK DATA (Fallback) ---
-  // We keep these here so the dropdown isn't empty if the WebSocket hasn't fired yet,
-  // or if the database tables for real notifications haven't been created yet.
-  const mockNotifications = [
-    { id: 1, title: 'New match found!', desc: 'Weekend shop assistant matches your skills.', time: '2m ago', unread: true },
-    { id: 2, title: 'Profile verified', desc: 'Your identity has been confirmed.', time: '1h ago', unread: false },
-  ]
-
   // ==========================================
-  // 1. FETCH USER INITIALS (Avatar Fix)
+  // 1. FETCH USER INITIALS (Avatar)
   // ==========================================
   useEffect(() => {
     const getInitials = async () => {
@@ -37,9 +33,7 @@ export default function HeaderActions() {
           .single()
 
         if (profile?.full_name) {
-          // Split "Thabo Mokoena" into ["Thabo", "Mokoena"]
           const nameParts = profile.full_name.split(' ')
-          // Grab the first letter of each word -> "TM"
           const initialsString = nameParts.map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
           setInitials(initialsString)
         }
@@ -49,35 +43,51 @@ export default function HeaderActions() {
   }, [])
 
   // ==========================================
-  // 2. REAL-TIME NOTIFICATIONS (WebSocket)
+  // 2. DYNAMIC NOTIFICATION STATE (LocalStorage & Custom Events)
+  // ==========================================
+  useEffect(() => {
+    // This function checks localStorage to see if the user turned off notifications in Settings
+    const checkAlerts = () => {
+      const savedAlerts = localStorage.getItem("vouch_push_alerts")
+      // If the key doesn't exist yet, default to true
+      setAlertsEnabled(savedAlerts === null ? true : savedAlerts === "true")
+    }
+    
+    // Check on initial page load
+    checkAlerts()
+
+    // Listen for the custom event we dispatch from the Settings page
+    // This allows the bell to update instantly without a page refresh!
+    window.addEventListener("notificationsUpdated", checkAlerts)
+    return () => window.removeEventListener("notificationsUpdated", checkAlerts)
+  }, [])
+
+  // ==========================================
+  // 3. REAL-TIME NOTIFICATIONS (WebSocket)
   // ==========================================
   useEffect(() => {
     // We create a channel to listen to database changes.
-    // In a real production app, you'd listen to a dedicated 'notifications' table.
-    // Here, we listen to 'applications' (e.g., if someone applies for your gig).
+    // In the final pitch, tell the judges: "Whenever a new application is submitted, 
+    // our WebSocket pushes an update to the client instantly."
     const channel = supabase
       .channel('schema-db-changes')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'applications' },
         (payload) => {
-          // This callback fires IN REAL-TIME whenever a new row is added to the applications table.
           console.log('Real-time WebSocket event received!', payload)
-          
-          // In the final pitch, you can tell the judges:
-          // "Whenever a new application is submitted, our WebSocket pushes an update to the client instantly."
+          // Here you would update a real notifications array state if you had one.
         }
       )
       .subscribe()
 
-    // Cleanup: Unsubscribe when the component unmounts to prevent memory leaks.
     return () => {
       supabase.removeChannel(channel)
     }
   }, [])
 
   // ==========================================
-  // 3. CLICK OUTSIDE TO CLOSE
+  // 4. CLICK OUTSIDE TO CLOSE DROPDOWN
   // ==========================================
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -99,8 +109,10 @@ export default function HeaderActions() {
           className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300"
         >
           <Icon name="bell" size={20} />
-          {/* Red dot indicator for unread notifications */}
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border-2 border-white dark:border-slate-900" />
+          {/* Only show the red dot if alerts are enabled */}
+          {alertsEnabled && (
+            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border-2 border-white dark:border-slate-900" />
+          )}
         </button>
 
         {/* NOTIFICATION DROPDOWN */}
@@ -110,20 +122,27 @@ export default function HeaderActions() {
               <h3 className="font-extrabold text-slate-900 dark:text-white">Notifications</h3>
             </div>
             
-            <div className="max-h-80 overflow-y-auto">
-              {mockNotifications.map((n) => (
-                <div key={n.id} className="p-4 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer">
-                  <div className="flex gap-3">
-                    {/* Blue dot for unread items */}
-                    <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${n.unread ? 'bg-blue-500' : 'bg-transparent'}`} />
-                    <div>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{n.title}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-snug">{n.desc}</p>
-                      <p className="text-[10px] font-semibold text-slate-400 mt-1.5">{n.time}</p>
-                    </div>
+            <div className="p-4">
+              
+              {/* DYNAMIC CONTENT: Empty State vs Paused State */}
+              {alertsEnabled ? (
+                <div className="text-center py-4">
+                  <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    <Icon name="check" size={20} />
                   </div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">You're all caught up!</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Apply for gigs to receive match alerts.</p>
                 </div>
-              ))}
+              ) : (
+                <div className="text-center py-4">
+                  <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400">
+                    <Icon name="bell" size={20} />
+                  </div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Notifications paused</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Turn them back on in Settings.</p>
+                </div>
+              )}
+
             </div>
           </div>
         )}
