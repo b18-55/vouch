@@ -18,7 +18,8 @@ export type ExperienceItem = {
 export type ExperienceInput = {
   title: string;
   description: string; 
-  type: "Informal work" | "Volunteering" | "Side hustle" | "Community work";
+  // We added "Job training" and "Student practicals" to the allowed types
+  type: "Informal work" | "Volunteering" | "Side hustle" | "Community work" | "Job training" | "Student practicals";
 };
 
 type HustleProps = {
@@ -46,13 +47,12 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
   const [editText, setEditText] = useState("");
 
   // ==========================================
-  // BUG FIX: Validation
+  // VALIDATION
   // ==========================================
   // The "Save" button is disabled if the title is empty, the description is 
   // too short, or if it is currently saving to the database.
-  // We changed the description limit from > 0 to > 20. 
-  // Why? Because if a user types only 2 words, the AI won't have enough context 
-  // to extract meaningful skills, and it will fail.
+  // We enforce > 20 characters because if a user types only 2 words, 
+  // the AI won't have enough context to extract meaningful skills.
   const canSave = title.trim().length > 0 && description.trim().length > 20 && !saving;
 
   // ==========================================
@@ -88,7 +88,6 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
 
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">What did you do?</span>
-              {/* FIX: Added dark mode classes to make text visible */}
               <textarea
                 className="min-h-44 w-full resize-none rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white p-4 text-sm leading-6 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 transition"
                 maxLength={MAX}
@@ -99,7 +98,6 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
               
               {/* Live character counter and helper text */}
               <span className="mt-2 flex justify-between text-xs text-slate-400 dark:text-slate-500">
-                {/* We explicitly tell the user they need 20+ characters */}
                 <span>Please add at least 20 characters so our AI can find your skills.</span>
                 <span>{description.length} / {MAX.toLocaleString("en-ZA")}</span>
               </span>
@@ -107,7 +105,6 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
 
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Type of experience</span>
-              {/* FIX: Added dark mode classes to make text visible */}
               <select
                 className="h-12 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white px-4 text-sm outline-none focus:border-blue-500 transition"
                 onChange={(e) => setType(e.target.value as ExperienceInput["type"])}
@@ -117,6 +114,9 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
                 <option>Volunteering</option>
                 <option>Side hustle</option>
                 <option>Community work</option>
+                {/* NEW OPTIONS ADDED HERE */}
+                <option>Job training</option>
+                <option>Student practicals</option>
               </select>
             </label>
 
