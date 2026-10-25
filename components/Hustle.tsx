@@ -13,6 +13,7 @@ export type ExperienceItem = {
   date: string; 
   text: string;
   skills: string[]; 
+  evidence_url?: string | null; // NEW: Added to support verification links
 };
 
 export type ExperienceInput = {
@@ -20,6 +21,7 @@ export type ExperienceInput = {
   description: string; 
   // We added "Job training" and "Student practicals" to the allowed types
   type: "Informal work" | "Volunteering" | "Side hustle" | "Community work" | "Job training" | "Student practicals";
+  evidence_url?: string; // NEW: Added to support verification links
 };
 
 type HustleProps = {
@@ -42,6 +44,9 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<ExperienceInput["type"]>("Informal work");
+  
+  // NEW: State to hold the evidence/proof URL
+  const [evidenceUrl, setEvidenceUrl] = useState("");
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -67,14 +72,32 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
         </button>
 
         <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 sm:p-9 transition-colors">
-          <div className="flex items-center gap-4">
-            <span className="icon-tile bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-              <Icon name="spark" />
-            </span>
-            <div>
-              <h1 className="text-2xl font-extrabold text-slate-950 dark:text-white">Log an experience</h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Any work counts—paid, unpaid or helping out.</p>
+          
+          {/* Header row with the Magic Demo button */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <span className="icon-tile bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                <Icon name="spark" />
+              </span>
+              <div>
+                <h1 className="text-2xl font-extrabold text-slate-950 dark:text-white">Log an experience</h1>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Any work counts—paid, unpaid or helping out.</p>
+              </div>
             </div>
+            
+            {/* NEW: Hackathon Magic Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setTitle("Weekend Shop Assistant");
+                setDescription("I worked at my aunt's spaza shop over the weekend. I helped customers find what they needed, rang up their purchases on the till, and handled the cash.");
+                setType("Informal work");
+                setEvidenceUrl("https://drive.google.com/demo-portfolio");
+              }}
+              className="shrink-0 text-xs font-bold text-blue-600 hover:underline px-3 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg transition"
+            >
+              ✨ Fill Demo Data
+            </button>
           </div>
           
           <div className="mt-8 space-y-5">
@@ -103,22 +126,36 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
               </span>
             </label>
 
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Type of experience</span>
-              <select
-                className="h-12 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white px-4 text-sm outline-none focus:border-blue-500 transition"
-                onChange={(e) => setType(e.target.value as ExperienceInput["type"])}
-                value={type}
-              >
-                <option>Informal work</option>
-                <option>Volunteering</option>
-                <option>Side hustle</option>
-                <option>Community work</option>
-                {/* NEW OPTIONS ADDED HERE */}
-                <option>Job training</option>
-                <option>Student practicals</option>
-              </select>
-            </label>
+            {/* Grid for Type and Evidence URL */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Type of experience</span>
+                <select
+                  className="h-12 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white px-4 text-sm outline-none focus:border-blue-500 transition"
+                  onChange={(e) => setType(e.target.value as ExperienceInput["type"])}
+                  value={type}
+                >
+                  <option>Informal work</option>
+                  <option>Volunteering</option>
+                  <option>Side hustle</option>
+                  <option>Community work</option>
+                  <option>Job training</option>
+                  <option>Student practicals</option>
+                </select>
+              </label>
+
+              {/* NEW: Evidence URL Input */}
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Proof / Evidence Link (Optional)</span>
+                <input
+                  type="url"
+                  className="h-12 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white px-4 text-sm outline-none focus:border-blue-500 transition"
+                  onChange={(e) => setEvidenceUrl(e.target.value)}
+                  placeholder="e.g. Link to a Google Drive or LinkedIn"
+                  value={evidenceUrl}
+                />
+              </label>
+            </div>
 
             {errorMessage && (
               <p className="text-sm font-bold text-red-600 dark:text-red-400" role="alert">
@@ -130,7 +167,8 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
               className="w-full sm:w-auto sm:px-8"
               disabled={!canSave}
               icon="spark"
-              onClick={() => onSave({ title: title.trim(), description: description.trim(), type })}
+              // Passed evidenceUrl to the save function
+              onClick={() => onSave({ title: title.trim(), description: description.trim(), type, evidence_url: evidenceUrl })}
             >
               {saving ? "Saving..." : "Save & find my skills"}
             </Button>
@@ -226,7 +264,7 @@ export default function Hustle({ experiences, onSave, onDelete, onEdit, saving =
 // ==========================================
 // 3. THE EXPERIENCE CARD COMPONENT
 // ==========================================
-function ExperienceCard({ id, date, skills, text, title, onDelete, onEditClick }: ExperienceItem & { onDelete?: (id: string) => void, onEditClick?: (id: string, text: string) => void }) {
+function ExperienceCard({ id, date, skills, text, title, evidence_url, onDelete, onEditClick }: ExperienceItem & { onDelete?: (id: string) => void, onEditClick?: (id: string, text: string) => void }) {
   return (
     <article className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 sm:p-6 transition-colors">
       <div className="flex items-start justify-between gap-4">
@@ -264,6 +302,15 @@ function ExperienceCard({ id, date, skills, text, title, onDelete, onEditClick }
       
       <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">{text}</p>
       
+      {/* NEW: Display Evidence Link if it exists */}
+      {evidence_url && (
+        <div className="mt-2">
+          <a href={evidence_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+            <Icon name="arrow" size={12} /> View Evidence
+          </a>
+        </div>
+      )}
+
       <div className="mt-4 flex flex-wrap gap-2">
         {skills.map((skill) => (
           <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors" key={skill}>

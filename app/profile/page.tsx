@@ -29,6 +29,7 @@ type Experience = {
   title: string
   type: string
   description?: string 
+  evidence_url?: string | null // NEW: Added for the proof link
   created_at: string 
 }
 
@@ -41,7 +42,7 @@ export default function ProfilePage() {
   const [experiences, setExperiences] = useState<Experience[]>([])
   const [loading, setLoading] = useState(true)
 
-  // --- NEW: SEE MORE TOGGLES ---
+  // --- SEE MORE TOGGLES ---
   // Keeps the profile clean on mobile. If true, shows all items.
   const [showAllSkills, setShowAllSkills] = useState(false)
   const [showAllExperiences, setShowAllExperiences] = useState(false)
@@ -89,11 +90,10 @@ export default function ProfilePage() {
     
     const shareData = { title: 'My Vouch Profile', text: text, url: url }
 
-    // If the device supports native sharing (iOS/Android), use the OS share sheet.
+    // Use native OS share on phones, fallback to WhatsApp on desktop
     if (navigator.share) {
       try { await navigator.share(shareData) } catch (err) { console.log('Share cancelled') }
     } else {
-      // Fallback for desktop browsers: open WhatsApp Web.
       window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank')
     }
   }
@@ -119,9 +119,11 @@ export default function ProfilePage() {
       // Dispatch a custom event so the Sidebar/Dashboard can update their stats
       window.dispatchEvent(new Event('vouch-data-updated'))
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // FIXED: Replaced 'any' with 'unknown' to satisfy strict TS rules
       console.error('Error deleting experience:', err)
-      alert(err.message || 'Failed to delete experience.')
+      const message = err instanceof Error ? err.message : 'Failed to delete experience.'
+      alert(message)
     } finally {
       setDeletingId(null)
     }
@@ -155,9 +157,11 @@ export default function ProfilePage() {
       setEditingExp(null)
       window.dispatchEvent(new Event('vouch-data-updated'))
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // FIXED: Replaced 'any' with 'unknown' to satisfy strict TS rules
       console.error('Error updating experience:', err)
-      alert(err.message || 'Failed to update experience.')
+      const message = err instanceof Error ? err.message : 'Failed to update experience.'
+      alert(message)
     } finally {
       setSavingEdit(false)
     }
@@ -205,6 +209,13 @@ export default function ProfilePage() {
   if (skills.length > 0) score += 25
   if (experiences.length > 0) score += 25
 
+  // NEW: Dynamic Trust Score Calculation (Max 90)
+  let dynamicTrust = 40;
+  if (profile?.bio) dynamicTrust += 10;
+  if (skills.length > 0) dynamicTrust += 20;
+  if (experiences.length > 0) dynamicTrust += 15;
+  if (experiences.some(exp => exp.evidence_url)) dynamicTrust += 15;
+
   // NEW: Slice the arrays based on the "See More" state
   const displayedSkills = showAllSkills ? uniqueSkills : uniqueSkills.slice(0, 8)
   const displayedExperiences = showAllExperiences ? experiences : experiences.slice(0, 3)
@@ -236,18 +247,25 @@ export default function ProfilePage() {
                     <Icon name="location" size={15} />
                     {profile?.location || 'Location not set'}
                   </p>
+                  
+                  {/* NEW: Dynamic Trust Score Badge */}
+                  <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-2 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    <Icon name="check" size={12} /> Trust Score: {dynamicTrust}/100
+                  </div>
                 </div>
               </div>
               
               {/* Action Buttons */}
               <div className="flex gap-2">
+                {/* NEW: Boost Button (Monetization Proof) */}
+                <Button kind="secondary" onClick={() => alert("Payment gateway coming soon!")} className="bg-amber-50 text-amber-700 border-amber-200">
+                  <Icon name="spark" size={16} /> Boost
+                </Button>
                 <Button kind="secondary" onClick={() => router.push('/profile/edit')}>
-                  <Icon name="edit" size={17} />
-                  Edit
+                  <Icon name="edit" size={17} /> Edit
                 </Button>
                 <Button kind="primary" onClick={shareProfile}>
-                  <Icon name="arrow" size={17} />
-                  Share
+                  <Icon name="arrow" size={17} /> Share
                 </Button>
               </div>
             </div>
@@ -267,7 +285,7 @@ export default function ProfilePage() {
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-extrabold text-slate-950 dark:text-white">Skills</h2>
                 <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                  Self-reported
+                  AI-Extracted & Vouched
                 </span>
               </div>
               
@@ -275,7 +293,6 @@ export default function ProfilePage() {
                 {uniqueSkills.length === 0 ? (
                   <p className="text-sm text-slate-500 dark:text-slate-400">No skills added yet. Log an experience!</p>
                 ) : (
-                  // Map over displayedSkills
                   displayedSkills.map((skill) => (
                     <span 
                       key={skill.id} 
@@ -287,7 +304,6 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* See More Toggle for Skills */}
               {uniqueSkills.length > 8 && (
                 <button 
                   onClick={() => setShowAllSkills(!showAllSkills)}
@@ -306,7 +322,6 @@ export default function ProfilePage() {
                 {experiences.length === 0 ? (
                   <p className="text-sm text-slate-500 dark:text-slate-400">No experience logged yet.</p>
                 ) : (
-                  // Map over displayedExperiences
                   displayedExperiences.map((exp) => (
                     <div 
                       key={exp.id}
@@ -321,6 +336,13 @@ export default function ProfilePage() {
                         </p>
                         {exp.description && (
                            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{exp.description}</p>
+                        )}
+                        
+                        {/* NEW: Evidence Badge */}
+                        {exp.evidence_url && (
+                          <a href={exp.evidence_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                            <Icon name="arrow" size={12} /> Evidence Attached
+                          </a>
                         )}
                       </div>
 
@@ -338,7 +360,6 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* See More Toggle for Experiences */}
               {experiences.length > 3 && (
                 <button 
                   onClick={() => setShowAllExperiences(!showAllExperiences)}
