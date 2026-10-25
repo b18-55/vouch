@@ -1,5 +1,5 @@
 'use client'
-// Client component: uses React hooks and fetches data from the browser.
+// Client component: uses React hooks (useEffect, useState) to fetch data from Supabase.
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -7,10 +7,12 @@ import { Icon } from '@/components/ui'
 
 /**
  * StatsPage (Internal Impact Dashboard)
- * Hidden page (/stats) to show judges live database metrics during the pitch.
+ * Hidden page (/stats) designed to show judges live database metrics during the pitch.
+ * This proves the app is processing real data, not just mock data.
  */
 export default function StatsPage() {
   
+  // State holds all the aggregated numbers
   const [stats, setStats] = useState({
     users: 0,
     experiences: 0,
@@ -24,7 +26,8 @@ export default function StatsPage() {
   useEffect(() => {
     const fetchStats = async () => {
       
-      // Run all queries in parallel for speed.
+      // We use Promise.all to fire off all these queries to Supabase simultaneously.
+      // This is much faster than waiting for one query to finish, then starting the next.
       const [
         usersRes, 
         expRes, 
@@ -33,20 +36,22 @@ export default function StatsPage() {
         gigsRes
       ] = await Promise.all([
         
-        // Use { count: 'exact', head: true } so the DB only returns the number 
-        // of rows, not the actual data. This is much faster and lighter.
+        // The `{ count: 'exact', head: true }` flag is a Supabase optimization.
+        // It tells the database to only return the COUNT of the rows, 
+        // and to not send any actual row data over the network. This is incredibly fast.
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('experiences').select('*', { count: 'exact', head: true }),
         supabase.from('skills').select('*', { count: 'exact', head: true }),
-        
-        // Safety net: if the applications/gigs tables don't exist yet, 
-        // the query fails silently and we handle it below.
         supabase.from('applications').select('*', { count: 'exact', head: true }),
+        
+        // For gigs, we actually need the data (amount_zar) to calculate the total sum.
         supabase.from('gigs').select('amount_zar') 
       ])
 
       // Safely calculate total income. Defaults to [] if the gigs table is missing.
       const gigsData = gigsRes.data || []
+      
+      // Reduce() loops through the gigs and sums up the amount_zar column.
       const income = gigsData.reduce((sum, gig) => sum + (gig.amount_zar || 0), 0)
 
       // Default to 0 if a count returned null (e.g. table missing or query failed).
@@ -65,10 +70,44 @@ export default function StatsPage() {
     fetchStats()
   }, [])
 
+  // ==========================================
+  // SKELETON LOADER
+  // ==========================================
+  // We use a skeleton that perfectly matches the layout of the real cards.
+  // This prevents "layout shift" (the screen jumping) when the data arrives.
   if (loading) {
-    return <p className="p-8 text-center text-slate-500 dark:bg-slate-950 dark:text-white min-h-screen">Loading platform stats...</p>
+    return (
+      <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 p-8 transition-colors duration-300 animate-pulse">
+        <div className="mx-auto max-w-4xl">
+          
+          {/* Skeleton Header */}
+          <div className="mb-8 flex flex-col items-center">
+            <div className="h-6 w-48 bg-slate-200 dark:bg-slate-800 rounded-full" />
+            <div className="mt-4 h-10 w-64 bg-slate-300 dark:bg-slate-700 rounded" />
+            <div className="mt-2 h-4 w-80 bg-slate-200 dark:bg-slate-800 rounded" />
+          </div>
+
+          {/* Skeleton Grid */}
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+            {/* Generate 6 skeleton cards */}
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+                {/* Skeleton Label */}
+                <div className="h-4 w-28 bg-slate-200 dark:bg-slate-800 rounded" />
+                {/* Skeleton Number */}
+                <div className="mt-4 h-10 w-16 bg-slate-300 dark:bg-slate-700 rounded" />
+              </div>
+            ))}
+          </div>
+          
+        </div>
+      </div>
+    )
   }
 
+  // ==========================================
+  // MAIN UI
+  // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 p-8 transition-colors duration-300">
       <div className="mx-auto max-w-4xl">

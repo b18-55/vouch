@@ -1,4 +1,5 @@
 'use client'
+// Client component: Uses usePathname to detect the current URL and conditionally render the layout.
 
 import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
@@ -15,13 +16,15 @@ export default function AppLayoutWrapper({ children }: { children: React.ReactNo
     pathname === '/register' || 
     pathname === '/employer' || 
     pathname === '/admin' ||
-    pathname.startsWith('/p/') // <--- THIS IS THE MAGIC LINE WE ADDED
+    pathname === '/stats' || // <--- ADDED: Internal Impact Dashboard (full width, no sidebar)
+    pathname.startsWith('/p/') // <--- Public Profile Pages (e.g., /p/hazel-123)
 
+  // If it's a public page, return a clean full-screen layout
   if (isPublicPage) {
     return <main className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950">{children}</main>
   }
 
-  // 2. Otherwise, show your original, beautiful dashboard layout
+  // 2. Otherwise, show the authenticated dashboard layout
   return (
     <div className="flex min-h-screen bg-[#f7f9fc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       
