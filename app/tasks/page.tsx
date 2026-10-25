@@ -100,7 +100,7 @@ export default function TasksPage() {
     if (payFilter === 'R1,000+') matchesPay = task.pay_amount >= 1000
     if (payFilter === 'R1,500+') matchesPay = task.pay_amount >= 1500
 
-    // Check 4: SKILL MATCHING (The new fix)
+    // Check 4: SKILL MATCHING
     let matchesSkills = true
     
     // Safety net: If the user has NO skills yet, we show all tasks. 
@@ -216,8 +216,6 @@ export default function TasksPage() {
             {filteredTasks.map((task) => {
               
               // Check if this specific task matches the user's skills.
-              // (We already filtered out non-matches above, so this is mostly 
-              // true, but we check it again to show the "Good match" badge).
               const isMatch = task.skills_required?.some((skill) => userSkills.includes(skill))
 
               return (
@@ -232,16 +230,16 @@ export default function TasksPage() {
                     </span>
 
                     <div className="flex items-center gap-2">
+                      {/* Dynamic "Good match" badge (only shows if skills match) */}
                       {isMatch && (
                         <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-extrabold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
                           Good match
                         </span>
                       )}
                       
-                      {/* Note for demo: In production, we would calculate this mathematically. 
-                          For the hackathon, it's a visual mock to show the UI. */}
-                      <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900">
-                        92% match
+                      {/* FIX: Replaced the fake 92% with a clean "Open" badge */}
+                      <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-xs font-extrabold text-slate-600 dark:text-slate-300">
+                        Open
                       </span>
                     </div>
                   </div>
