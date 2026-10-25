@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-// Import the layout wrapper that handles conditional rendering
+// Import our custom wrapper that decides whether to show the Sidebar/Header
 import AppLayoutWrapper from "@/components/AppLayoutWrapper";
 
+// Setup the fonts
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -15,10 +16,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Next.js metadata for SEO and PWA support
 export const metadata: Metadata = {
   title: "Vouch | Verified Skills. Real Income.",
   description: "Turn informal hustle into verified skills and paid work for young people in SA and Namibia.",
-  manifest: "/manifest.json", 
+  manifest: "/manifest.json", // Links to the PWA manifest your teammate added
 };
 
 export default function RootLayout({
@@ -33,7 +35,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        {/* Inline script to prevent dark mode flickering on initial load */}
+        {/* 
+          DARK MODE FIX: 
+          This inline script runs BEFORE the page renders. 
+          It checks local storage or the user's OS settings to see if they prefer dark mode.
+          By doing this instantly, it prevents the "white flash" when loading a dark page.
+        */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -53,14 +60,15 @@ export default function RootLayout({
       </head>
       
       {/* 
-        Removed the 'flex' class from the body. 
-        The AppLayoutWrapper now handles all flex layouts, sidebars, and headers.
+        The body applies the background and text colors globally.
+        It also handles the smooth transition when switching between light/dark mode.
       */}
       <body className="min-h-full bg-[#f7f9fc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
         
         {/* 
-          AppLayoutWrapper decides whether to show the Sidebar/Top Header 
-          based on the current URL path.
+          AppLayoutWrapper is the gatekeeper.
+          It looks at the URL. If you are on /login, it renders just the page.
+          If you are on /dashboard, it renders the Sidebar + Header + page.
         */}
         <AppLayoutWrapper>
           {children}
