@@ -25,11 +25,9 @@ export default function TasksPage() {
   // --- STATE MANAGEMENT ---
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
-  
-  // We store the user's skills here so we can filter the tasks later.
   const [userSkills, setUserSkills] = useState<string[]>([])
 
-  // Filter states for the UI dropdowns
+  // Filter states
   const [searchQuery, setSearchQuery] = useState('')
   const [locationFilter, setLocationFilter] = useState('Any location')
   const [payFilter, setPayFilter] = useState('Any pay')
@@ -43,14 +41,9 @@ export default function TasksPage() {
     const loadTasks = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        
-        // Protect the route: if not logged in, kick them to /login
-        if (!session) {
-          router.push('/login')
-          return
-        }
+        if (!session) return router.push('/login')
 
-        // 1. Fetch all open tasks
+        // Fetch all open tasks
         const { data, error } = await supabase
           .from('micro_tasks')
           .select('*')
@@ -59,14 +52,13 @@ export default function TasksPage() {
         if (error) throw error
         if (data) setTasks(data)
 
-        // 2. Fetch the user's verified skills
+        // Fetch user skills
         const { data: skillsData } = await supabase
           .from('skills')
           .select('name')
           .eq('profile_id', session.user.id)
 
         if (skillsData) {
-          // We map the objects to just an array of strings (e.g. ["Cooking", "Cleaning"])
           setUserSkills(skillsData.map((s) => s.name))
         }
       } catch (err) {
@@ -80,46 +72,45 @@ export default function TasksPage() {
   }, [router])
 
   // ==========================================
-  // 3. FILTERING LOGIC
+  // 3. MATCHING, FILTERING, AND SORTING LOGIC
   // ==========================================
-  // This function runs every time the user types in the search bar, changes a 
-  // dropdown, or when the initial data loads. It returns only the tasks that 
-  // pass ALL the checks below.
-  const filteredTasks = tasks.filter((task) => {
+  
+  // STEP A: Calculate the match percentage for EVERY task
+  const tasksWithMatchScore = tasks.map((task) => {
+    const lowerUserSkills = userSkills.map(s => s.toLowerCase())
     
-    // Check 1: Search text
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase())
+    // Count how many required skills the user has
+    const matchedSkillsCount = task.skills_required?.filter(skill => 
+      lowerUserSkills.includes(skill.toLowerCase())
+    ).length || 0
 
-    // Check 2: Location dropdown
+    const totalRequired = task.skills_required?.length || 0
+    
+    // Calculate percentage
+    const matchPercentage = totalRequired > 0 
+      ? Math.round((matchedSkillsCount / totalRequired) * 100) 
+      : 0
+
+    return { ...task, matchPercentage }
+  })
+
+  // STEP B: Filter by the user's dropdowns (Search, Location, Pay)
+  const filteredTasks = tasksWithMatchScore.filter((task) => {
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase())
+    
     const matchesLocation =
       locationFilter === 'Any location' ||
       (task.location && task.location.toLowerCase().includes(locationFilter.toLowerCase()))
 
-    // Check 3: Pay dropdown
     let matchesPay = true
     if (payFilter === 'R1,000+') matchesPay = task.pay_amount >= 1000
     if (payFilter === 'R1,500+') matchesPay = task.pay_amount >= 1500
 
-    // Check 4: SKILL MATCHING
-    let matchesSkills = true
-    
-    // Safety net: If the user has NO skills yet, we show all tasks. 
-    // We don't want a new user to see an empty page and think the app is broken.
-    if (userSkills.length > 0) {
-      const required = task.skills_required || []
-      
-      // We lowercase both sides so "Cooking" matches "cooking".
-      const lowerUserSkills = userSkills.map(s => s.toLowerCase())
-      
-      // Does the task require at least one skill that the user has?
-      matchesSkills = required.some((reqSkill) => 
-        lowerUserSkills.includes(reqSkill.toLowerCase())
-      )
-    }
-
-    // The task only shows up if ALL 4 checks are true.
-    return matchesSearch && matchesLocation && matchesPay && matchesSkills
+    return matchesSearch && matchesLocation && matchesPay
   })
+
+  // STEP C: Sort the tasks so the highest percentage match is at the top
+  filteredTasks.sort((a, b) => b.matchPercentage - a.matchPercentage)
 
   // ==========================================
   // 4. LOADING SKELETON
@@ -214,26 +205,6 @@ export default function TasksPage() {
           {/* TASK GRID */}
           <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredTasks.map((task) => {
-              
-              // --- DYNAMIC SKILL MATCHING MATH ---
-              // 1. Lowercase the user's skills for easy comparison.
-              const lowerUserSkills = userSkills.map(s => s.toLowerCase())
-              
-              // 2. Count how many of the task's required skills the user actually has.
-              const matchedSkillsCount = task.skills_required?.filter(skill => 
-                lowerUserSkills.includes(skill.toLowerCase())
-              ).length || 0
-
-              // 3. Calculate the total required skills for this task.
-              const totalRequired = task.skills_required?.length || 0
-              
-              // 4. Calculate the percentage.
-              // (e.g., If they have 2 out of 4 required skills, it's 50%).
-              // If the task requires no skills, default to 0.
-              const matchPercentage = totalRequired > 0 
-                ? Math.round((matchedSkillsCount / totalRequired) * 100) 
-                : 0
-
               return (
                 <button
                   key={task.id}
@@ -246,10 +217,10 @@ export default function TasksPage() {
                     </span>
 
                     <div className="flex items-center gap-2">
-                      {/* Show the real percentage if they match at least one skill. */}
-                      {matchPercentage > 0 ? (
+                      {/* If match is greater than 0, show the percentage. Otherwise show 'Open' */}
+                      {task.matchPercentage > 0 ? (
                         <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900">
-                          {matchPercentage}% match
+                          {task.matchPercentage}% match
                         </span>
                       ) : (
                         <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-xs font-extrabold text-slate-600 dark:text-slate-300">
