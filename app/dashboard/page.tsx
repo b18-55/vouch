@@ -7,6 +7,9 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button, Icon, PageTitle } from '@/components/ui'
 
+// ==========================================
+// 1. TYPESCRIPT TYPES
+// ==========================================
 type Profile = {
   id: string
   full_name: string | null
@@ -24,32 +27,39 @@ type Task = {
 }
 
 export default function DashboardPage() {
+  // --- STATE MANAGEMENT ---
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   
-  // Your dynamic enhancements
+  // Dynamic metrics calculated from the database
   const [skillsCount, setSkillsCount] = useState(0)
   const [expCount, setExpCount] = useState(0)
   const [profileStrength, setProfileStrength] = useState(0)
   const [recentTasks, setRecentTasks] = useState<Task[]>([])
   
-  // Teammate's Task 5 addition
+  // Earnings log metrics
   const [totalEarned, setTotalEarned] = useState(0)
   const [gigCount, setGigCount] = useState(0)
 
   const router = useRouter()
 
+  // ==========================================
+  // 2. FETCH DATA ON LOAD
+  // ==========================================
   useEffect(() => {
     const load = async () => {
+      // Step A: Authenticate
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return router.push('/login')
 
+      // Step B: Fetch basic profile
       const { data } = await supabase
         .from('profiles')
         .select('id, full_name, trust_score, bio, location')
         .eq('id', session.user.id)
         .single()
 
+      // Step C: Fetch counts for skills and experiences
       const { count: skillsCountResult } = await supabase
         .from('skills')
         .select('*', { count: 'exact', head: true })
@@ -60,32 +70,36 @@ export default function DashboardPage() {
         .select('*', { count: 'exact', head: true })
         .eq('profile_id', session.user.id)
 
+      // Step D: Fetch recent tasks for the "Good matches" section
       const { data: taskData } = await supabase
         .from('micro_tasks')
         .select('id, title, employer_name, pay_amount, duration_days')
         .eq('status', 'open')
         .limit(2)
 
-      // Task 5: Fetch completed gigs and compute total earned (From Teammate)
+      // Step E: Fetch completed gigs for the Earnings Log
       const { data: gigsData } = await supabase
         .from('gigs')
         .select('amount_zar')
         .eq('user_id', session.user.id)
 
+      // --- CALCULATE PROFILE STRENGTH (Max 100%) ---
+      // 30% for basic details, 20% for bio, 25% for skills, 25% for experience
       let score = 0
       if (data?.full_name && data?.location) score += 30
       if (data?.bio) score += 20
       if (skillsCountResult && skillsCountResult > 0) score += 25
       if (expCountResult && expCountResult > 0) score += 25
 
+      // --- CALCULATE TOTAL EARNINGS ---
+      const sum = gigsData?.reduce((acc, gig) => acc + (gig.amount_zar || 0), 0) || 0
+
+      // Step F: Save to state
       setProfile(data)
       setProfileStrength(score)
       setSkillsCount(skillsCountResult ?? 0)
       setExpCount(expCountResult ?? 0)
       setRecentTasks(taskData || [])
-
-      // Calculate gigs sum (From Teammate)
-      const sum = gigsData?.reduce((acc, gig) => acc + (gig.amount_zar || 0), 0) || 0
       setTotalEarned(sum)
       setGigCount(gigsData?.length || 0)
 
@@ -94,15 +108,19 @@ export default function DashboardPage() {
     load()
   }, [router])
 
+  // --- DYNAMIC GREETING ---
   const currentHour = new Date().getHours()
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening'
   const todayDate = new Date().toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })
 
-  // Dynamic Trust Score Breakdown calculation (YOUR code)
-  const skillsScore = Math.min(80, skillsCount * 20) 
-  const gigsScore = Math.min(40, expCount * 20) 
-  const sharedScore = profile?.bio ? 10 : 0 
+  // --- BREAKDOWN SCORES (Fixed the math so it adds up to 100) ---
+  const skillsScore = skillsCount > 0 ? 25 : 0
+  const gigsScore = expCount > 0 ? 25 : 0
+  const sharedScore = profile?.bio ? 20 : 0
 
+  // ==========================================
+  // 3. SKELETON LOADER
+  // ==========================================
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 pb-20 animate-pulse transition-colors duration-200">
@@ -118,23 +136,17 @@ export default function DashboardPage() {
             <div className="h-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl" />
             <div className="h-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl" />
           </div>
-          <div className="mt-9">
-            <div className="h-6 w-48 bg-slate-300 dark:bg-slate-600 rounded mb-4" />
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <div className="h-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl" />
-              <div className="h-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl" />
-            </div>
-          </div>
         </main>
       </div>
     )
   }
 
+  // ==========================================
+  // 4. RENDER UI
+  // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-20">
       
-      {/* Note: The local header was removed here because AppLayoutWrapper handles it globally */}
-
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
         
         <PageTitle 
@@ -143,7 +155,7 @@ export default function DashboardPage() {
           text="Here's your next best step." 
         />
 
-        {/* 3-COLUMN GRID (Merged) */}
+        {/* 3-COLUMN GRID */}
         <section className="mt-7 grid gap-5 lg:grid-cols-[1.5fr_1fr_1fr]">
           
           {/* CARD 1: PROFILE TIP */}
@@ -163,7 +175,7 @@ export default function DashboardPage() {
             <div className="absolute -bottom-24 -right-16 h-72 w-72 rounded-full border-[55px] border-blue-600" />
           </div>
 
-          {/* CARD 2: PROFILE STRENGTH (YOUR DYNAMIC CODE) */}
+          {/* CARD 2: PROFILE STRENGTH */}
           <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
             <div className="flex items-start justify-between">
               <div>
@@ -172,16 +184,16 @@ export default function DashboardPage() {
               </div>
               <span className="text-3xl font-extrabold text-slate-950 dark:text-white">{profileStrength}%</span>
             </div>
+            
             <div className="mt-5 h-2 rounded-full bg-slate-100 dark:bg-slate-700">
               <div className="h-full rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-500" style={{ width: `${profileStrength}%` }} />
             </div>
             
-            {/* Dynamic Trust Score Breakdown */}
+            {/* Mathematically aligned breakdown */}
             <p className="mt-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Skills ({skillsScore}/80) · Gigs ({gigsScore}/40) · Profile Shared ({sharedScore}/10)
+              Skills ({skillsScore}/25) · Gigs ({gigsScore}/25) · Profile Shared ({sharedScore}/20)
             </p>
             
-            {/* Dynamic Checklist */}
             <ul className="mt-5 space-y-3 text-sm">
               <li className={`flex items-center gap-2 ${profile?.full_name && profile?.location ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
                 <span className={`grid h-5 w-5 place-items-center rounded-full ${profile?.full_name && profile?.location ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400' : 'border border-slate-200 dark:border-slate-700'}`}>
@@ -204,7 +216,7 @@ export default function DashboardPage() {
             </ul>
           </div>
 
-          {/* CARD 3: TOTAL EARNED (TEAMMATE'S CODE) */}
+          {/* CARD 3: TOTAL EARNED */}
           <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
             <div className="flex items-start justify-between">
               <div>
@@ -231,6 +243,7 @@ export default function DashboardPage() {
 
         </section>
 
+        {/* GOOD MATCHES SECTION */}
         <section className="mt-9">
           <div className="flex items-end justify-between">
             <div>
@@ -254,7 +267,6 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400"><Icon name="briefcase" /></span>
-                    {/* Changed back to 'Open' to remove the fake 92% match */}
                     <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-xs font-extrabold text-slate-600 dark:text-slate-300">Open</span>
                   </div>
                   <h3 className="mt-5 text-base font-extrabold text-slate-950 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">{task.title}</h3>
