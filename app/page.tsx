@@ -46,7 +46,12 @@ export default function Home() {
             <Icon name="spark" size={15} /> Your experience counts
           </span>
 
-          <h1 className="max-w-2xl text-5xl font-extrabold leading-[1.05] tracking-[-0.045em] text-slate-950 dark:text-white sm:text-6xl lg:text-7xl">
+          {/* 
+            RESPONSIVE FIX: 
+            Reduced the base text size to 'text-4xl' on mobile. 
+            This ensures that long words like "opportunity" do not overflow the screen on small phones.
+          */}
+          <h1 className="max-w-2xl text-4xl font-extrabold leading-[1.05] tracking-[-0.045em] text-slate-950 dark:text-white sm:text-5xl lg:text-7xl">
             Turn your hustle into your <span className="text-blue-600 dark:text-blue-500">next opportunity.</span>
           </h1>
 
@@ -118,21 +123,29 @@ export default function Home() {
         </div>
       </section>
 
-      {/* --- SOCIAL PROOF STATS --- */}
-      {/* These stats build trust and show market traction to judges */}
+      {/* 
+        ==========================================
+        SOCIAL PROOF STATS
+        ==========================================
+        RESPONSIVE FIX: 
+        - Changed 'grid-cols-3' to 'grid-cols-1 sm:grid-cols-3'. 
+          This forces the stats to stack vertically on mobile (preventing the overlap seen in the screenshot),
+          and display side-by-side only on screens wider than 640px.
+        - Reduced number font size to 'text-2xl' on mobile, 'sm:text-3xl' on larger screens.
+      */}
       <section className="mx-auto max-w-7xl px-5 pb-20 lg:px-8">
-        <div className="grid grid-cols-3 gap-4 border-t border-slate-200 dark:border-slate-800 pt-12 text-center max-w-3xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-4 border-t border-slate-200 dark:border-slate-800 pt-12 text-center max-w-3xl mx-auto">
           <div>
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">500+</p>
-            <p className="text-sm font-semibold text-slate-500">Youth Onboarded</p>
+            <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">500+</p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">Youth Onboarded</p>
           </div>
           <div>
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">N$45,000</p>
-            <p className="text-sm font-semibold text-slate-500">Paid Out</p>
+            <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">N$45,000</p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">Paid Out</p>
           </div>
           <div>
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">12</p>
-            <p className="text-sm font-semibold text-slate-500">Active Gigs</p>
+            <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">12</p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">Active Gigs</p>
           </div>
         </div>
       </section>
