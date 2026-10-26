@@ -234,6 +234,8 @@ export default function ProfilePage() {
           body { background: white !important; }
           .no-print { display: none !important; }
           .print-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
+          /* Reset the negative margin so the avatar doesn't get cut off on paper */
+          .print-mt-0 { margin-top: 0 !important; }
         }
       `}</style>
 
@@ -244,7 +246,8 @@ export default function ProfilePage() {
           <div className="h-28 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 no-print" />
           
           <div className="px-5 pb-7 sm:px-8">
-            <div className="-mt-12 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+            {/* Added print-mt-0 to fix the cut-off avatar when the banner is hidden */}
+            <div className="-mt-12 print-mt-0 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
               
               <div className="flex items-end gap-4">
                 <div className="grid h-24 w-24 place-items-center rounded-3xl border-4 border-white dark:border-slate-900 bg-blue-100 dark:bg-blue-900/50 text-2xl font-extrabold text-blue-700 dark:text-blue-300 shadow-sm">

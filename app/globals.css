@@ -74,3 +74,15 @@ input, textarea, select {
   animation: slideUp 0.5s ease-out forwards;
   opacity: 0; /* Starts hidden */
 }
+
+/* ==========================================
+   PRINT STYLES (PDF EXPORT)
+   ========================================== */
+/* Hides the global app header and mobile navigation when saving to PDF */
+@media print {
+  header,
+  nav,
+  .bottom-nav {
+    display: none !important;
+  }
+}
