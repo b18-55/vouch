@@ -1,10 +1,18 @@
 'use client'
-import { useState } from 'react'
+
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
-export default function SignupPage() {
+// ==========================================
+// INNER FORM COMPONENT
+// ==========================================
+// We separated this into its own component because it uses `useSearchParams()`.
+// Next.js requires any component reading URL search parameters to be wrapped 
+// in a <Suspense> boundary during the static build phase, otherwise Vercel 
+// throws a "missing Suspense boundary" build error.
+function SignupForm() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -167,5 +175,22 @@ export default function SignupPage() {
         </div>
       </section>
     </main>
+  )
+}
+
+// ==========================================
+// OUTER PAGE COMPONENT (Suspense Wrapper)
+// ==========================================
+// This is the default export that Next.js loads. It wraps our SignupForm 
+// in a Suspense boundary so the static build completes successfully.
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-900">
+        <div className="animate-pulse text-slate-500 font-bold">Loading...</div>
+      </div>
+    }>
+      <SignupForm />
+    </Suspense>
   )
 }
