@@ -133,7 +133,20 @@ export default function PublicProfilePage() {
   const uniqueSkills = Array.from(new Map(skills.map(s => [s.name, s])).values())
 
   // ==========================================
-  // 5. RENDER MAIN UI
+  // 5. DYNAMIC TRUST SCORE CALCULATION
+  // ==========================================
+  // We calculate the trust score dynamically on the frontend so it perfectly
+  // matches the Employer Dashboard. This ensures that even if the database
+  // `trust_score` column is null, the user still gets credit for having a bio,
+  // skills, experience, and evidence.
+  let dynamicTrust = 40;
+  if (profile?.bio) dynamicTrust += 10;
+  if (skills && skills.length > 0) dynamicTrust += 20;
+  if (experiences && experiences.length > 0) dynamicTrust += 15;
+  if (experiences?.some((exp) => exp.evidence_url)) dynamicTrust += 15;
+
+  // ==========================================
+  // 6. RENDER MAIN UI
   // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 py-12 px-4 transition-colors duration-300">
@@ -147,7 +160,7 @@ export default function PublicProfilePage() {
           
           <button 
             onClick={downloadImage}
-            // FIX: Disable button if loading is true to prevent capturing a blank image
+            // Disable button if loading is true to prevent capturing a blank image
             disabled={loading}
             className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
@@ -176,7 +189,8 @@ export default function PublicProfilePage() {
             
             <div className="ml-auto text-right">
               <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">Trust Score</p>
-              <p className="text-3xl font-extrabold text-blue-600 dark:text-blue-400">{profile?.trust_score ?? 0}/100</p>
+              {/* Rendered the dynamically calculated score instead of the raw DB column */}
+              <p className="text-3xl font-extrabold text-blue-600 dark:text-blue-400">{dynamicTrust}/100</p>
             </div>
           </div>
 
@@ -225,10 +239,10 @@ export default function PublicProfilePage() {
                     <p className="text-sm font-bold text-slate-900 dark:text-white">{exp.title}</p>
                     <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 line-clamp-3">{exp.description}</p>
                     
-                    {/* P4 EVIDENCE LINK */}
+                    {/* EVIDENCE LINK */}
                     {exp.evidence_url && (
-                      <a href={exp.evidence_url} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs font-bold text-blue-600 hover:underline dark:text-blue-400">
-                        🔗 View Evidence
+                      <a href={exp.evidence_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline dark:text-blue-400">
+                        <Icon name="arrow" size={12} /> View Evidence
                       </a>
                     )}
                   </div>
