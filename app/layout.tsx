@@ -1,15 +1,9 @@
-import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import AppLayoutWrapper from '@/components/AppLayoutWrapper'
 import Script from 'next/script'
 
 const inter = Inter({ subsets: ['latin'] })
-
-export const metadata: Metadata = {
-  title: 'Vouch - Turn your hustle into your next opportunity',
-  description: 'Vouch turns real-world experience into trusted skills and better matches.',
-}
 
 export default function RootLayout({
   children,
@@ -18,6 +12,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <title>Vouch - Turn your hustle into your next opportunity</title>
+        <meta name="description" content="Vouch turns real-world experience into trusted skills and better matches." />
+      </head>
       <body className={`${inter.className} bg-[#f7f9fc] dark:bg-slate-950 transition-colors duration-200`}>
         
         <Script
