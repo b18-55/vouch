@@ -1,12 +1,28 @@
 'use client'
+// 'use client' is a Next.js directive. It tells Next.js that this component 
+// must run in the browser (Client Component) rather than purely on the server.
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui'
 
+/**
+ * EDIT PROFILE PAGE
+ * 
+ * Purpose:
+ * Allows users to update their full name, location, and bio.
+ * 
+ * UI/UX Fixes:
+ * 1. Added a "Cancel" button to allow users to back out of the edit flow
+ *    without saving changes. This is crucial for reducing user frustration.
+ * 2. Used a responsive flex layout (flex-col-reverse on mobile, flex-row on desktop)
+ *    so the primary "Save" action remains prominent and accessible.
+ */
 export default function EditProfilePage() {
   const router = useRouter()
   
+  // --- STATE MANAGEMENT ---
   const [fullName, setFullName] = useState('')
   const [location, setLocation] = useState('')
   const [bio, setBio] = useState('')
@@ -15,6 +31,7 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // --- FETCH CURRENT PROFILE DATA ---
   useEffect(() => {
     const loadProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -42,6 +59,7 @@ export default function EditProfilePage() {
     loadProfile()
   }, [router])
 
+  // --- SAVE CHANGES ---
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)    
@@ -65,9 +83,11 @@ export default function EditProfilePage() {
       return
     }
 
+    // Success! Route back to the main profile page
     router.push('/profile')
   }
 
+  // --- LOADING SKELETON ---
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 animate-pulse transition-colors duration-200">
@@ -88,7 +108,10 @@ export default function EditProfilePage() {
                 <div className="h-4 w-24 rounded bg-slate-200 dark:bg-slate-700 mb-2" />
                 <div className="h-32 w-full rounded-xl bg-slate-200 dark:bg-slate-700" />
               </div>
-              <div className="h-12 w-full rounded-xl bg-slate-200 dark:bg-slate-700" />
+              <div className="flex gap-4">
+                <div className="h-12 flex-1 rounded-xl bg-slate-200 dark:bg-slate-700" />
+                <div className="h-12 flex-[2] rounded-xl bg-slate-200 dark:bg-slate-700" />
+              </div>
             </div>
           </div>
         </main>
@@ -96,11 +119,10 @@ export default function EditProfilePage() {
     )
   }
 
+  // --- RENDER UI ---
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200 pb-20">
       
-      {/* Removed the local header containing "Back to Profile" to rely on the global layout */}
-
       <main className="mx-auto max-w-2xl px-5 py-8 lg:px-8">
         <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm sm:p-8 transition-colors duration-200">
           <h1 className="text-2xl font-extrabold text-slate-950 dark:text-white">Edit Profile</h1>
@@ -110,6 +132,7 @@ export default function EditProfilePage() {
 
           <form onSubmit={handleSave} className="mt-8 space-y-6">
             
+            {/* --- FULL NAME INPUT --- */}
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Full Name</span>
               <input 
@@ -121,6 +144,7 @@ export default function EditProfilePage() {
               />
             </label>
 
+            {/* --- LOCATION INPUT --- */}
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Location</span>
               <input 
@@ -132,6 +156,7 @@ export default function EditProfilePage() {
               />
             </label>
 
+            {/* --- BIO TEXTAREA --- */}
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Short Bio</span>
               <textarea 
@@ -143,11 +168,25 @@ export default function EditProfilePage() {
               />
             </label>
 
+            {/* --- ERROR MESSAGE --- */}
             {error && <p className="text-sm font-bold text-red-600 dark:text-red-400">{error}</p>}
 
-            <Button type="submit" className="w-full" disabled={saving}>
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Button>
+            {/* --- ACTION BUTTONS (Save & Cancel) --- */}
+            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+              {/* Cancel Button: Routes back to the profile without saving */}
+              <button
+                type="button"
+                onClick={() => router.push('/profile')}
+                className="w-full sm:w-1/3 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+              >
+                Cancel
+              </button>
+              
+              {/* Save Button: Submits the form */}
+              <Button type="submit" className="w-full sm:w-2/3" disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
           </form>
         </div>
       </main>
