@@ -1,5 +1,5 @@
 'use client'
-// Client component: Uses React hooks (useState, useEffect, useRef) and browser APIs (document).
+// Client component: Uses React hooks (useState, useEffect, useRef) and browser APIs (document, window).
 import { useEffect, useState, useRef } from 'react'
 import { toPng } from 'html-to-image'
 import { useParams } from 'next/navigation'
@@ -81,12 +81,13 @@ export default function PublicProfilePage() {
   }, [slug])
 
   // ==========================================
-  // 3. DOWNLOAD IMAGE FUNCTION
+  // 3. DOWNLOAD ACTIONS
   // ==========================================
+  
+  // Image Generation: Captures the exact DOM node of the profile card.
   const downloadImage = async () => {
     if (profileCardRef.current === null) return
     try {
-      // html-to-image captures the exact DOM node we point it to
       const dataUrl = await toPng(profileCardRef.current, { cacheBust: true, style: { transform: 'scale(1)' } })
       const link = document.createElement('a')
       link.download = `${profile?.full_name?.replace(/\s+/g, '_') || 'vouch'}_profile.png`
@@ -96,6 +97,13 @@ export default function PublicProfilePage() {
       console.error('Failed to download image', err)
       alert('Could not download image. Try again.')
     }
+  }
+
+  // PDF Generation: Triggers the browser's native print dialog.
+  // We use the native print instead of a heavy library like jspdf to keep the bundle small.
+  // The @media print CSS below hides the buttons and backgrounds for a clean resume.
+  const downloadPDF = () => {
+    window.print()
   }
 
   // ==========================================
@@ -150,29 +158,49 @@ export default function PublicProfilePage() {
   // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 py-12 px-4 transition-colors duration-300">
+      
+      {/* 
+        PRINT CSS: When the user clicks "Save PDF", the browser triggers window.print().
+        This style block ensures ONLY the profile card is printed, hiding the background 
+        and the action buttons, resulting in a clean, 1-page physical resume.
+      */}
+      <style jsx global>{`
+        @media print {
+          body { background: white !important; }
+          .no-print { display: none !important; }
+          .print-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
+        }
+      `}</style>
+
       <div className="mx-auto max-w-2xl">
         
-        {/* --- TOP BAR (Badge + Download Button) --- */}
-        <div className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* --- TOP BAR (Badge + Actions) --- */}
+        <div className="no-print mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30 px-3 py-1 text-xs font-bold text-blue-700 dark:text-blue-300">
             <Icon name="check" size={14} /> Verified by Vouch
           </span>
           
-          <button 
-            onClick={downloadImage}
-            // Disable button if loading is true to prevent capturing a blank image
-            disabled={loading}
-            className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-            <span className="inline-block rotate-90">
-              <Icon name="arrow" size={16} />
-            </span>
-            {loading ? 'Loading...' : 'Download Image'}
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={downloadPDF}
+              className="flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 text-slate-700 px-4 py-2 text-sm font-bold hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700 transition"
+            >
+              📄 Save PDF
+            </button>
+            <button 
+              onClick={downloadImage}
+              className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 transition"
+            >
+              <span className="inline-block rotate-90">
+                <Icon name="arrow" size={16} />
+              </span>
+              Download Image
+            </button>
+          </div>
         </div>
 
         {/* --- MAIN PROFILE CARD (We attach the ref here for the image capture) --- */}
-        <div ref={profileCardRef} className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm transition-colors duration-300">
+        <div ref={profileCardRef} className="print-card rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm transition-colors duration-300">
           
           {/* Header: Avatar, Name, Trust Score */}
           <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
@@ -219,7 +247,7 @@ export default function PublicProfilePage() {
             {uniqueSkills.length > 8 && (
               <button 
                 onClick={() => setShowAllSkills(!showAllSkills)}
-                className="mt-4 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline transition"
+                className="no-print mt-4 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline transition"
               >
                 {showAllSkills ? '- Show Less' : `+ Show ${uniqueSkills.length - 8} More Skills`}
               </button>
@@ -253,7 +281,7 @@ export default function PublicProfilePage() {
             {experiences.length > 3 && (
               <button 
                 onClick={() => setShowAllExp(!showAllExp)}
-                className="mt-4 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline transition"
+                className="no-print mt-4 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline transition"
               >
                 {showAllExp ? '- Show Less' : `+ Show ${experiences.length - 3} More Experiences`}
               </button>
