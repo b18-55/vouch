@@ -59,15 +59,15 @@ export default function Home() {
             <Button className="min-h-12 px-6" kind="secondary" href="/signup">Hire talent</Button>
           </div>
 
-          {/* P4: Try Live Demo Button */}
+          {/* FIXED: Try Live Demo Button uses <a> tag instead of <button onClick> */}
           <div className="mt-4">
-            <button 
-              onClick={() => window.location.href = '/login?email=judge@vouch.app&password=Password123!'}
+            <a 
+              href="/login?email=judge@vouch.app&password=Password123!"
               className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-900 bg-transparent px-6 py-3 font-bold text-slate-900 hover:bg-slate-100 dark:border-white dark:text-white dark:hover:bg-slate-800 transition w-full sm:w-auto"
             >
               <Icon name="spark" size={18} />
               Try Live Demo
-            </button>
+            </a>
           </div>
 
           <p className="mt-5 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
@@ -112,7 +112,8 @@ export default function Home() {
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                   <Icon name="wallet" />
                 </span>
-                <p className="mt-4 text-sm font-bold text-slate-900 dark:text-white">R850 · 2 days</p>
+                {/* Namibian Currency */}
+                <p className="mt-4 text-sm font-bold text-slate-900 dark:text-white">N$850 · 2 days</p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">92% skills match</p>
               </div>
             </div>
@@ -129,7 +130,8 @@ export default function Home() {
             <p className="text-sm font-semibold text-slate-500">Youth Onboarded</p>
           </div>
           <div>
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">R45,000</p>
+            {/* Namibian Currency */}
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">N$45,000</p>
             <p className="text-sm font-semibold text-slate-500">Paid Out</p>
           </div>
           <div>

@@ -1,56 +1,79 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-import AppLayoutWrapper from '@/components/AppLayoutWrapper'
-import Script from 'next/script'
-import FakeToast from '@/components/FakeToast'
+'use client'
+// Client component: Uses usePathname to detect the current URL and conditionally render the layout.
 
-const inter = Inter({ subsets: ['latin'] })
+import { usePathname } from 'next/navigation'
+import Sidebar from './Sidebar'
+import HeaderActions from './HeaderActions'
+import BottomNav from './BottomNav'
+import FakeToast from '@/components/FakeToast' // P4: Import the FakeToast
 
-export const metadata: Metadata = {
-  title: 'Vouch - Turn your hustle into your next opportunity',
-  description: 'Vouch turns real-world experience into trusted skills and better matches.',
-}
+export default function AppLayoutWrapper({ children }: { children: React.ReactNode }) {
+  // This hook grabs the current URL path (e.g., "/dashboard" or "/signup")
+  const pathname = usePathname()
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-[#f7f9fc] dark:bg-slate-950 transition-colors duration-200`}>
-        {/* 
-          FIX: Swapped raw <script> for Next.js <Script> component to prevent console errors.
-          Kept the dark mode logic to prevent the white flash on load.
-        */}
-        <Script
-          id="theme-script"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var theme = localStorage.getItem('theme');
-                  if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                    document.documentElement.classList.add('dark');
-                  } else {
-                    document.documentElement.classList.remove('dark');
-                  }
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
-        
-        <AppLayoutWrapper>
-          {children}
-        </AppLayoutWrapper>
+  // ==========================================
+  // 1. DEFINE PUBLIC PAGES (No Sidebar/Header)
+  // ==========================================
+  const isPublicPage = 
+    pathname === '/' || 
+    pathname === '/login' || 
+    pathname === '/signup' || 
+    pathname === '/roles' ||  
+    pathname === '/employer' || 
+    pathname === '/admin' ||
+    pathname === '/stats' || 
+    pathname.startsWith('/p/') 
 
-        {/* P4: Fake Toast Notification */}
+  // ==========================================
+  // 2. RENDER PUBLIC LAYOUT (Clean & Full Screen)
+  // ==========================================
+  if (isPublicPage) {
+    return (
+      <main className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950">
+        {children}
         <FakeToast message="Welcome to Vouch! 🚀" />
+      </main>
+    )
+  }
+
+  // ==========================================
+  // 3. RENDER AUTHENTICATED LAYOUT (Dashboard, Profile, etc.)
+  // ==========================================
+  return (
+    <div className="flex min-h-screen bg-[#f7f9fc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      
+      {/* --- DESKTOP SIDEBAR --- */}
+      <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r border-slate-200 dark:border-slate-800 z-40">
+        <Sidebar />
+      </div>
+
+      {/* --- MAIN CONTENT WRAPPER --- */}
+      <div className="flex-1 flex flex-col md:pl-64 h-screen overflow-hidden">
         
-      </body>
-    </html>
+        {/* --- GLOBAL TOP HEADER --- */}
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 sm:px-6">
+          <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 hidden sm:block">
+            Your experience counts.
+          </span>
+          <div className="flex items-center gap-4 ml-auto">
+            <HeaderActions />
+          </div>
+        </header>
+
+        {/* --- PAGE CONTENT --- */}
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+          {children}
+        </main>
+      </div>
+      
+      {/* --- MOBILE BOTTOM NAVIGATION --- */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <BottomNav />
+      </div>
+
+      {/* P4: Fake Toast Notification */}
+      <FakeToast message="Welcome to Vouch! 🚀" />
+      
+    </div>
   )
 }
