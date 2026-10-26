@@ -29,7 +29,7 @@ type Experience = {
   title: string
   type: string
   description?: string 
-  evidence_url?: string | null // NEW: Added for the proof link
+  evidence_url?: string | null // Added for the proof link
   created_at: string 
 }
 
@@ -120,7 +120,6 @@ export default function ProfilePage() {
       window.dispatchEvent(new Event('vouch-data-updated'))
 
     } catch (err: unknown) {
-      // FIXED: Replaced 'any' with 'unknown' to satisfy strict TS rules
       console.error('Error deleting experience:', err)
       const message = err instanceof Error ? err.message : 'Failed to delete experience.'
       alert(message)
@@ -158,7 +157,6 @@ export default function ProfilePage() {
       window.dispatchEvent(new Event('vouch-data-updated'))
 
     } catch (err: unknown) {
-      // FIXED: Replaced 'any' with 'unknown' to satisfy strict TS rules
       console.error('Error updating experience:', err)
       const message = err instanceof Error ? err.message : 'Failed to update experience.'
       alert(message)
@@ -209,14 +207,14 @@ export default function ProfilePage() {
   if (skills.length > 0) score += 25
   if (experiences.length > 0) score += 25
 
-  // NEW: Dynamic Trust Score Calculation (Max 90)
+  // Dynamic Trust Score Calculation (Max 90)
   let dynamicTrust = 40;
   if (profile?.bio) dynamicTrust += 10;
   if (skills.length > 0) dynamicTrust += 20;
   if (experiences.length > 0) dynamicTrust += 15;
   if (experiences.some(exp => exp.evidence_url)) dynamicTrust += 15;
 
-  // NEW: Slice the arrays based on the "See More" state
+  // Slice the arrays based on the "See More" state
   const displayedSkills = showAllSkills ? uniqueSkills : uniqueSkills.slice(0, 8)
   const displayedExperiences = showAllExperiences ? experiences : experiences.slice(0, 3)
 
@@ -226,11 +224,24 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 transition-colors duration-300">
       
+      {/* 
+        PRINT CSS: When the user clicks "Save PDF", the browser triggers window.print().
+        This style block ensures ONLY the profile cards are printed, hiding the background, 
+        action buttons, and the sidebar.
+      */}
+      <style jsx global>{`
+        @media print {
+          body { background: white !important; }
+          .no-print { display: none !important; }
+          .print-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
+        }
+      `}</style>
+
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
         
         {/* --- PROFILE HEADER CARD --- */}
-        <div className="overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-          <div className="h-28 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500" />
+        <div className="print-card overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <div className="h-28 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 no-print" />
           
           <div className="px-5 pb-7 sm:px-8">
             <div className="-mt-12 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
@@ -248,16 +259,18 @@ export default function ProfilePage() {
                     {profile?.location || 'Location not set'}
                   </p>
                   
-                  {/* NEW: Dynamic Trust Score Badge */}
+                  {/* Dynamic Trust Score Badge */}
                   <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-2 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                     <Icon name="check" size={12} /> Trust Score: {dynamicTrust}/100
                   </div>
                 </div>
               </div>
               
-              {/* Action Buttons */}
-              <div className="flex gap-2">
-                {/* NEW: Boost Button (Monetization Proof) */}
+              {/* Action Buttons (Hidden during print) */}
+              <div className="no-print flex gap-2">
+                <Button kind="secondary" onClick={() => window.print()} className="bg-slate-100 text-slate-700 border-slate-200">
+                  📄 Save PDF
+                </Button>
                 <Button kind="secondary" onClick={() => alert("Payment gateway coming soon!")} className="bg-amber-50 text-amber-700 border-amber-200">
                   <Icon name="spark" size={16} /> Boost
                 </Button>
@@ -281,7 +294,7 @@ export default function ProfilePage() {
           <div className="space-y-5">
             
             {/* --- SKILLS SECTION --- */}
-            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+            <section className="print-card rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-extrabold text-slate-950 dark:text-white">Skills</h2>
                 <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -307,7 +320,7 @@ export default function ProfilePage() {
               {uniqueSkills.length > 8 && (
                 <button 
                   onClick={() => setShowAllSkills(!showAllSkills)}
-                  className="mt-4 text-sm font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                  className="no-print mt-4 text-sm font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400"
                 >
                   {showAllSkills ? 'Show less' : `See all ${uniqueSkills.length} skills`}
                 </button>
@@ -315,7 +328,7 @@ export default function ProfilePage() {
             </section>
 
             {/* --- EXPERIENCE TIMELINE SECTION --- */}
-            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+            <section className="print-card rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
               <h2 className="text-lg font-extrabold text-slate-950 dark:text-white">Experience</h2>
               
               <div className="mt-5 space-y-6">
@@ -338,7 +351,7 @@ export default function ProfilePage() {
                            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{exp.description}</p>
                         )}
                         
-                        {/* NEW: Evidence Badge */}
+                        {/* Evidence Badge */}
                         {exp.evidence_url && (
                           <a href={exp.evidence_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline">
                             <Icon name="arrow" size={12} /> Evidence Attached
@@ -346,8 +359,8 @@ export default function ProfilePage() {
                         )}
                       </div>
 
-                      {/* Edit / Delete Buttons */}
-                      <div className="flex items-center gap-1">
+                      {/* Edit / Delete Buttons (Hidden during print) */}
+                      <div className="no-print flex items-center gap-1">
                         <button type="button" onClick={() => handleOpenEdit(exp)} title="Edit" className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/50 transition">
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         </button>
@@ -363,7 +376,7 @@ export default function ProfilePage() {
               {experiences.length > 3 && (
                 <button 
                   onClick={() => setShowAllExperiences(!showAllExperiences)}
-                  className="mt-6 text-sm font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                  className="no-print mt-6 text-sm font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400"
                 >
                   {showAllExperiences ? 'Show less' : `See all ${experiences.length} experiences`}
                 </button>
@@ -371,8 +384,8 @@ export default function ProfilePage() {
             </section>
           </div>
 
-          {/* --- PROFILE STRENGTH SIDEBAR --- */}
-          <aside className="space-y-5">
+          {/* --- PROFILE STRENGTH SIDEBAR (Hidden during print) --- */}
+          <aside className="no-print space-y-5">
             <div className="rounded-2xl bg-slate-950 dark:bg-slate-900 border dark:border-slate-800 p-6 text-white">
               <div className="flex items-start justify-between">
                 <div>
@@ -395,9 +408,9 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      {/* --- EDIT EXPERIENCE MODAL --- */}
+      {/* --- EDIT EXPERIENCE MODAL (Hidden during print) --- */}
       {editingExp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+        <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-xl border border-slate-200 dark:border-slate-700">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Experience</h3>
             

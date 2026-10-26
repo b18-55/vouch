@@ -23,9 +23,10 @@ interface ApplicantProfile {
  * Represents the "Demand Side" of the platform. It demonstrates how an employer 
  * views talent, evaluates trust, and secures work through escrow.
  * 
- * Trust Score Logic:
- * Dynamically calculates the applicant's trust score based on profile completeness 
- * and evidence provided. (Max 90 points visible here, as bio isn't fetched).
+ * Print Optimization:
+ * Includes a "Save PDF" feature. The @media print CSS and `.no-print` classes
+ * ensure that printing generates a clean document of the applicant, hiding the 
+ * web UI (navigation, stats, escrow sidebar).
  */
 export default function EmployerPage() {
   const [applicants, setApplicants] = useState<ApplicantProfile[]>([])
@@ -48,14 +49,28 @@ export default function EmployerPage() {
 
   const handleFundEscrow = () => {
     setEscrowFunded(true)
+    // UX "Wow" Factor: Confetti on successful escrow funding.
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } })
   }
 
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 dark:text-slate-100 pb-20 transition-colors duration-200">
       
-      {/* Header */}
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-5 lg:px-8 transition-colors duration-200">
+      {/* 
+        PRINT CSS: 
+        Hides the background and specific UI elements when the user clicks "Save PDF".
+        Forces a white background for the printed document.
+      */}
+      <style jsx global>{`
+        @media print {
+          body { background: white !important; }
+          .no-print { display: none !important; }
+          .print-applicant { border: none !important; box-shadow: none !important; padding: 0 !important; }
+        }
+      `}</style>
+
+      {/* Header (Hidden during print) */}
+      <header className="no-print sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-5 lg:px-8 transition-colors duration-200">
         <div className="flex items-center gap-2">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-600 text-white">
             <svg fill="none" height="22" viewBox="0 0 24 24" width="22">
@@ -76,8 +91,8 @@ export default function EmployerPage() {
 
       <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
         
-        {/* Vouch Pro SaaS Banner */}
-        <div className="mb-6 bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-4 flex justify-between items-center shadow-lg">
+        {/* Vouch Pro SaaS Banner (Hidden during print) */}
+        <div className="no-print mb-6 bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-4 flex justify-between items-center shadow-lg">
           <div className="flex items-center gap-3">
             <span className="bg-amber-500 text-white p-2 rounded-lg"><Icon name="spark" size={18} /></span>
             <div>
@@ -93,15 +108,17 @@ export default function EmployerPage() {
           </button>
         </div>
 
-        <PageTitle 
-          eyebrow="LANGA CORNER STORE" 
-          title="Hiring made simpler" 
-          text="Find capable young people for short, meaningful work." 
-          action={<Button icon="plus">Post an opportunity</Button>} 
-        />
+        <div className="no-print">
+          <PageTitle 
+            eyebrow="LANGA CORNER STORE" 
+            title="Hiring made simpler" 
+            text="Find capable young people for short, meaningful work." 
+            action={<Button icon="plus">Post an opportunity</Button>} 
+          />
+        </div>
 
-        {/* Stats Row */}
-        <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {/* Stats Row (Hidden during print) */}
+        <div className="no-print mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-5 transition-colors duration-200">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Open tasks</p>
             <p className="mt-2 text-3xl font-extrabold text-slate-950 dark:text-white">1</p>
@@ -123,14 +140,23 @@ export default function EmployerPage() {
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
           
-          {/* Applicant View */}
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
-            <div className="flex justify-between">
-              <h2 className="font-extrabold text-slate-950 dark:text-white">Recent applicants</h2>
-              <button className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors">View all</button>
+          {/* Applicant View (Will be printed) */}
+          <div className="print-applicant rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-extrabold text-slate-950 dark:text-white text-lg">Recent applicants</h2>
+              
+              <div className="flex items-center gap-4">
+                {/* PDF Generation Trigger */}
+                <button onClick={() => window.print()} className="no-print text-sm font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors flex items-center gap-1">
+                  📄 Save PDF
+                </button>
+                <button className="no-print text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors">
+                  View all
+                </button>
+              </div>
             </div>
 
-            <div className="mt-5 space-y-4">
+            <div className="space-y-4">
               {loading ? (
                 <p className="text-sm text-slate-500 animate-pulse">Loading applicant data...</p>
               ) : applicants.length === 0 ? (
@@ -161,7 +187,6 @@ export default function EmployerPage() {
                         
                         <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-2 py-1 border border-emerald-100 dark:border-emerald-900 text-center">
                           <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Trust</p>
-                          {/* Rendered the dynamically calculated score */}
                           <p className="font-extrabold text-emerald-700 dark:text-emerald-400 text-sm">{calculatedTrust}/100</p>
                         </div>
                       </div>
@@ -178,8 +203,10 @@ export default function EmployerPage() {
                         <div className="mt-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 p-3 border border-blue-100 dark:border-blue-900/50">
                           <p className="text-xs font-bold text-blue-800 dark:text-blue-300 mb-1">Latest Experience</p>
                           <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{user.experiences[0].title}</p>
+                          
+                          {/* Hidden during print so employers don't print clickable links */}
                           {user.experiences[0].evidence_url && (
-                            <a href={user.experiences[0].evidence_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline">
+                            <a href={user.experiences[0].evidence_url} target="_blank" rel="noopener noreferrer" className="no-print mt-2 inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline">
                               <Icon name="arrow" size={12} /> View Evidence / Proof
                             </a>
                           )}
@@ -192,8 +219,8 @@ export default function EmployerPage() {
             </div>
           </div>
 
-          {/* Escrow & Hiring Tip Column */}
-          <div className="space-y-5">
+          {/* Escrow & Hiring Tip Column (Hidden during print) */}
+          <div className="no-print space-y-5">
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
               <h3 className="font-extrabold text-slate-950 dark:text-white mb-2">Secure Hiring</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
@@ -227,9 +254,9 @@ export default function EmployerPage() {
         </div>
       </main>
 
-      {/* Vouch Pro Modal */}
+      {/* Vouch Pro Modal (Hidden during print) */}
       {showProModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+        <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl">
             <h2 className="text-2xl font-extrabold text-center mb-2 text-slate-900 dark:text-white">Vouch Pro</h2>
             <p className="text-center text-slate-500 mb-6 text-sm">Supercharge your hiring.</p>
