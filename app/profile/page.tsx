@@ -1,17 +1,23 @@
 'use client'
 // 'use client' is a Next.js directive. It tells Next.js that this component 
 // must run in the browser (Client Component) rather than purely on the server.
+// We need this because we use React hooks (useState, useEffect, useRef) and 
+// browser APIs (document, window) for generating images and downloading files.
 
 // --- IMPORTS ---
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button, Icon } from '@/components/ui'
+// html-to-image is a lightweight library that takes a DOM node and converts it 
+// into a PNG data URL. We use this instead of a heavy canvas library.
 import { toPng } from 'html-to-image'
 
 // ==========================================
-// 1. MODERN SVG ICONS (From P2)
+// 1. INLINE SVG ICONS
 // ==========================================
+// We use inline SVGs instead of importing an external icon library (like Lucide or Heroicons)
+// to keep the bundle size small and the page load fast, which is crucial for low-data users.
 const MapPinIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
 )
@@ -30,16 +36,20 @@ const ShareNodesIcon = () => (
 const DownloadIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
 )
+const PrinterIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+)
 
 // ==========================================
 // 2. TYPESCRIPT TYPES
 // ==========================================
+// Defining strict types ensures we catch errors at build time if the database schema changes.
 type Profile = {
   full_name: string | null
   location: string | null
   bio: string | null
   trust_score: number | null
-  public_slug: string | null 
+  public_slug: string | null // Used to generate the public share link
 }
 
 type Skill = { id: string; name: string }
@@ -49,7 +59,7 @@ type Experience = {
   title: string
   type: string
   description?: string 
-  evidence_url?: string | null // Added for the proof link
+  evidence_url?: string | null // The proof link (e.g., LinkedIn, Google Drive)
   created_at: string 
 }
 
@@ -57,6 +67,8 @@ export default function ProfilePage() {
   const router = useRouter()
   
   // --- REFS & STATE ---
+  // We use a Ref to grab the HTML element of the profile card for the "Download Image" feature.
+  // The html-to-image library uses this exact reference to know what to capture.
   const profileCardRef = useRef<HTMLDivElement>(null)
 
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -64,13 +76,15 @@ export default function ProfilePage() {
   const [experiences, setExperiences] = useState<Experience[]>([])
   const [loading, setLoading] = useState(true)
 
-  // State to control the Custom Share Menu Modal
+  // State to control the Custom Share Menu Modal (instead of instantly opening the native share sheet)
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
+  // State for the "Show More" toggles to keep the UI clean on mobile
   const [showAllSkills, setShowAllSkills] = useState(false)
   const [showAllExperiences, setShowAllExperiences] = useState(false)
 
+  // State for the Edit Modal and Delete Action
   const [deletingId, setDeletingId] = useState<string | null>(null) 
   const [editingExp, setEditingExp] = useState<Experience | null>(null) 
   const [editTitle, setEditTitle] = useState('') 
@@ -78,12 +92,16 @@ export default function ProfilePage() {
   const [editDescription, setEditDescription] = useState('') 
   const [savingEdit, setSavingEdit] = useState(false) 
 
-  // --- FETCH DATA ON LOAD ---
+  // ==========================================
+  // 3. FETCH DATA ON LOAD
+  // ==========================================
   useEffect(() => {
     const loadProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return router.push('/login')
 
+      // We use Promise.all to fetch Profile, Skills, and Experiences simultaneously.
+      // This is much faster than fetching them one by one (waterfall requests).
       const [profileRes, skillsRes, expRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', session.user.id).single(),
         supabase.from('skills').select('id, name').eq('profile_id', session.user.id),
@@ -100,11 +118,12 @@ export default function ProfilePage() {
   }, [router]) 
 
   // ==========================================
-  // ACTION 1: SHARE LINK (Text/WhatsApp)
+  // 4. SHARE & DOWNLOAD ACTIONS
   // ==========================================
+  
+  // Action A: Share Link (Text/WhatsApp)
   const shareLink = async () => {
     setShowShareMenu(false)
-
     const slug = profile?.public_slug
     if (!slug) return alert("Profile link not ready yet. Try reloading.")
     
@@ -112,6 +131,8 @@ export default function ProfilePage() {
     const text = 'Check out my verified skills on Vouch!'
     const shareData = { title: 'My Vouch Profile', text: text, url: url }
     
+    // Use the native OS share sheet on mobile devices (iOS/Android).
+    // If on desktop, fallback to opening WhatsApp Web.
     if (navigator.share) {
       try { await navigator.share(shareData) } catch (err) { console.log('Share cancelled') }
     } else {
@@ -119,24 +140,20 @@ export default function ProfilePage() {
     }
   }
 
-  // ==========================================
-  // ACTION 2: DOWNLOAD AS IMAGE
-  // ==========================================
+  // Action B: Download as Image
   const downloadProfile = async () => {
     if (!profileCardRef.current) return
-
     try {
       setDownloading(true)
-      const dataUrl = await toPng(profileCardRef.current, { 
-        cacheBust: true,
-        backgroundColor: '#0f172a'
-      })
+      // Convert the referenced HTML element into a PNG data URL.
+      // We set a fallback dark background to prevent transparent edges if the user is in dark mode.
+      const dataUrl = await toPng(profileCardRef.current, { cacheBust: true, backgroundColor: '#0f172a' })
       
+      // Create a temporary link and click it to trigger the download
       const link = document.createElement('a')
       link.download = `${profile?.full_name?.replace(/\s+/g, '-').toLowerCase() || 'vouch'}-profile.png`
       link.href = dataUrl
       link.click()
-      
     } catch (err) {
       console.error('Error downloading image:', err)
       alert('Could not download the profile image. Please try again.')
@@ -146,20 +163,35 @@ export default function ProfilePage() {
     }
   }
 
+  // Action C: Download as PDF (Resume)
+  const downloadPDF = () => {
+    setShowShareMenu(false) // Close the modal first
+    
+    // We add a 100ms delay to allow the React state (closing the modal) to finish rendering 
+    // before we trigger the browser's print dialog. Otherwise, the modal might appear in the PDF.
+    setTimeout(() => window.print(), 100) 
+  }
+
   // ==========================================
-  // EDIT & DELETE EXPERIENCE LOGIC
+  // 5. EDIT & DELETE LOGIC
   // ==========================================
+  
   const handleDeleteExperience = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this experience?')) return
     setDeletingId(id) 
     try {
       const { error: expError } = await supabase.from('experiences').delete().eq('id', id)
       if (expError) throw expError
+      
+      // Belt-and-suspenders: manually delete linked skills just in case the database cascade fails.
       await supabase.from('skills').delete().eq('experience_id', id)
+      
+      // Update the UI instantly without requiring a page refresh
       setExperiences((prev) => prev.filter((exp) => exp.id !== id))
+      
+      // Dispatch custom event so the global Sidebar and Dashboard update their math instantly
       window.dispatchEvent(new Event('vouch-data-updated'))
     } catch (err: unknown) {
-      console.error('Error deleting experience:', err)
       alert(err instanceof Error ? err.message : 'Failed to delete experience.')
     } finally {
       setDeletingId(null)
@@ -183,13 +215,15 @@ export default function ProfilePage() {
         .update({ title: editTitle, type: editType, description: editDescription })
         .eq('id', editingExp.id)
       if (error) throw error
+      
+      // Update the UI instantly
       setExperiences((prev) =>
         prev.map((exp) => exp.id === editingExp.id ? { ...exp, title: editTitle, type: editType, description: editDescription } : exp)
       )
+      
       setEditingExp(null)
       window.dispatchEvent(new Event('vouch-data-updated'))
     } catch (err: unknown) {
-      console.error('Error updating experience:', err)
       alert(err instanceof Error ? err.message : 'Failed to update experience.')
     } finally {
       setSavingEdit(false)
@@ -197,8 +231,9 @@ export default function ProfilePage() {
   }
 
   // ==========================================
-  // LOADING SKELETON
+  // 6. LOADING SKELETON
   // ==========================================
+  // Prevents layout shift and gives visual feedback while waiting for Supabase.
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 animate-pulse transition-colors duration-300">
@@ -221,14 +256,17 @@ export default function ProfilePage() {
   }
 
   // ==========================================
-  // HELPER CALCULATIONS
+  // 7. HELPER CALCULATIONS
   // ==========================================
+  
   const initials = profile?.full_name 
     ? profile.full_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() 
     : 'U'
 
+  // Deduplicate skills so the same skill doesn't show up 3 times if learned in 3 different experiences.
   const uniqueSkills = Array.from(new Map(skills.map(skill => [skill.name, skill])).values())
 
+  // Profile Strength (30% Basic + 20% Bio + 25% Skills + 25% Experience)
   let score = 0
   if (profile?.full_name && profile?.location) score += 30
   if (profile?.bio) score += 20
@@ -242,17 +280,22 @@ export default function ProfilePage() {
   if (experiences.length > 0) dynamicTrust += 15;
   if (experiences.some(exp => exp.evidence_url)) dynamicTrust += 15;
 
-  // Slice the arrays based on the "See More" state
+  // Slice the arrays based on the "See More" state to prevent a wall of text on the UI.
   const displayedSkills = showAllSkills ? uniqueSkills : uniqueSkills.slice(0, 8)
   const displayedExperiences = showAllExperiences ? experiences : experiences.slice(0, 3)
 
   // ==========================================
-  // RENDER UI
+  // 8. RENDER UI
   // ==========================================
   return (
     <div className="print-reset min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 transition-colors duration-300">
       
-      {/* PRINT CSS */}
+      {/* 
+        PRINT CSS: 
+        When the user clicks "Save as PDF", the browser triggers window.print().
+        This style block ensures ONLY the profile cards are printed. It hides the background, 
+        action buttons, the sidebar, and resets the margins for a clean A4 page.
+      */}
       <style jsx global>{`
         @media print {
           @page { margin: 1.5cm; }
@@ -270,22 +313,38 @@ export default function ProfilePage() {
         
         {/* --- PROFILE HEADER CARD --- */}
         <div ref={profileCardRef} className="print-card overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+          
+          {/* The blue gradient banner. Hidden during print so it doesn't waste ink. */}
           <div className="h-32 sm:h-40 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 no-print" />
           
           <div className="px-5 pb-8 sm:px-8">
-            <div className="-mt-16 sm:-mt-20 print-mt-0 flex flex-col md:flex-row items-center md:items-end justify-between gap-6">
+            
+            {/* 
+              RESPONSIVE LAYOUT FIX:
+              We use 'xl:flex-row' instead of 'md:flex-row'. This tells the browser to only 
+              place the avatar, name, and buttons in a single horizontal row if the screen is 
+              very large (desktop). On smaller laptops or minimized windows, it stacks vertically,
+              preventing the name from squishing into a vertical sliver.
+            */}
+            <div className="-mt-16 sm:-mt-20 print-mt-0 flex flex-col xl:flex-row items-center xl:items-end justify-between gap-6">
               
               {/* Left Side: Avatar + Info */}
-              <div className="flex flex-col md:flex-row items-center md:items-end gap-4 md:gap-5 flex-1 min-w-0 w-full">
+              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 md:gap-5 flex-1 min-w-0 w-full">
                 <div className="grid h-24 w-24 sm:h-32 sm:w-32 shrink-0 place-items-center rounded-3xl border-4 border-white dark:border-slate-900 bg-gradient-to-br from-blue-500 to-cyan-400 text-3xl font-extrabold text-white shadow-lg">
                   {initials}
                 </div>
                 
-                <div className="flex flex-col items-center md:items-start text-center md:text-left pb-1 md:pb-2 flex-1 min-w-0">
-                  <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-950 dark:text-white tracking-tight break-words w-full">
+                <div className="flex flex-col items-center sm:items-start text-center sm:text-left pb-1 md:pb-2 flex-1 min-w-0 w-full">
+                  
+                  {/* 
+                    We use 'truncate' instead of 'break-words'. If the name is extremely long 
+                    on a small screen, truncate adds '...' instead of breaking letter-by-letter.
+                  */}
+                  <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-950 dark:text-white tracking-tight truncate w-full">
                     {profile?.full_name || 'Your Name'}
                   </h1>
-                  <p className="mt-1.5 flex items-center justify-center md:justify-start gap-1.5 text-sm font-medium text-slate-500 dark:text-slate-300">
+                  
+                  <p className="mt-1.5 flex items-center justify-center sm:justify-start gap-1.5 text-sm font-medium text-slate-500 dark:text-slate-300">
                     <MapPinIcon />
                     <span className="truncate">{profile?.location || 'Location not set'}</span>
                   </p>
@@ -296,15 +355,12 @@ export default function ProfilePage() {
                 </div>
               </div>
               
-              {/* Right Side: Action Buttons */}
-              <div className="no-print flex w-full md:w-auto gap-2 justify-center md:justify-end shrink-0">
-                <button onClick={() => window.print()} className="flex-1 md:flex-none flex items-center justify-center gap-2 rounded-xl bg-slate-100 text-slate-700 px-4 py-2.5 text-sm font-bold border border-slate-200 hover:bg-slate-200 transition shadow-sm">
-                  📄 Save PDF
-                </button>
-                <button onClick={() => alert("Payment gateway coming soon!")} className="flex-1 md:flex-none flex items-center justify-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 px-4 py-2.5 text-sm font-bold border border-amber-200 dark:border-amber-900/50 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition shadow-sm">
+              {/* Right Side: Action Buttons (Save PDF removed from here) */}
+              <div className="no-print flex flex-wrap w-full xl:w-auto gap-2 justify-center xl:justify-end shrink-0">
+                <button onClick={() => alert("Payment gateway coming soon!")} className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 px-5 py-2.5 text-sm font-bold border border-amber-200 dark:border-amber-900/50 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition shadow-sm">
                   <SparklesIcon /> Boost
                 </button>
-                <button onClick={() => setShowShareMenu(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 rounded-xl bg-blue-600 text-white px-5 py-2.5 text-sm font-bold shadow-md hover:bg-blue-700 transition">
+                <button onClick={() => setShowShareMenu(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl bg-blue-600 text-white px-5 py-2.5 text-sm font-bold shadow-md hover:bg-blue-700 transition">
                   <ShareNodesIcon /> Share
                 </button>
               </div>
@@ -443,15 +499,16 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      {/* CUSTOM SHARE MENU MODAL */}
+      {/* CUSTOM SHARE MENU MODAL (Now with 3 Options) */}
       {showShareMenu && (
         <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setShowShareMenu(false)}>
           <div className="relative bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white mb-2">Share Profile</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">How would you like to send your profile?</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">How would you like to share your profile?</p>
             
             <div className="space-y-3">
+              {/* OPTION 1: SHARE LINK */}
               <button onClick={shareLink} className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left group">
                 <span className="grid h-10 w-10 place-items-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                   <ShareNodesIcon />
@@ -462,6 +519,7 @@ export default function ProfilePage() {
                 </div>
               </button>
 
+              {/* OPTION 2: DOWNLOAD IMAGE */}
               <button onClick={downloadProfile} disabled={downloading} className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left group disabled:opacity-50">
                 <span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                   <DownloadIcon />
@@ -469,6 +527,17 @@ export default function ProfilePage() {
                 <div>
                   <p className="font-bold text-slate-900 dark:text-white">{downloading ? 'Saving...' : 'Download Image'}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">Save as PNG to send offline</p>
+                </div>
+              </button>
+
+              {/* OPTION 3: SAVE PDF */}
+              <button onClick={downloadPDF} className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left group">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 group-hover:bg-slate-600 group-hover:text-white transition-colors">
+                  <PrinterIcon />
+                </span>
+                <div>
+                  <p className="font-bold text-slate-900 dark:text-white">Save as PDF</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Download a clean A4 resume</p>
                 </div>
               </button>
             </div>
