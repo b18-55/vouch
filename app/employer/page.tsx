@@ -1,12 +1,5 @@
 'use client'
 
-// ==========================================
-// EMPLOYER DASHBOARD PAGE
-// ==========================================
-// This page represents the "Demand Side" of the Vouch platform. 
-// It allows employers to view candidate profiles, see their trust scores, 
-// fund escrow for a job, and post new opportunities to the database.
-
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -14,44 +7,36 @@ import { supabase } from '@/lib/supabase'
 import { Button, Icon, PageTitle } from '@/components/ui'
 import confetti from 'canvas-confetti'
 
-// ==========================================
-// 1. TYPESCRIPT INTERFACES
-// ==========================================
 interface ApplicantProfile {
   id: string
   full_name: string | null
   location: string | null
   trust_score: number | null
-  skills: { name: string }[]
-  experiences: { title: string; evidence_url: string | null }[]
 }
 
-/**
- * Employer Dashboard Component
- * 
- * Architecture:
- * Represents the "Demand Side" of the platform. It demonstrates how an employer 
- * views talent, evaluates trust, and secures work through escrow.
- * 
- * Print Optimization:
- * Includes a "Save PDF" feature. The @media print CSS and `.no-print` classes
- * ensure that printing generates a clean document of the applicant, hiding the 
- * web UI (navigation, stats, escrow sidebar).
- */
+// ==========================================
+// HARDCODED DEMO APPLICANT (THABO)
+// ==========================================
+// Keeping the data object simple since we are only displaying 
+// name, location, and trust score in the UI.
+const DEMO_APPLICANT: ApplicantProfile = {
+  id: 'demo-thabo-id',
+  full_name: 'Thabo Mokoena',
+  location: 'Windhoek, Namibia',
+  trust_score: 100, 
+}
+
 export default function EmployerPage() {
   const router = useRouter()
   
-  // --- CORE STATE ---
-  const [applicants, setApplicants] = useState<ApplicantProfile[]>([])
+  const [applicants, setApplicants] = useState<ApplicantProfile[]>([DEMO_APPLICANT])
   const [loading, setLoading] = useState(true)
   const [escrowFunded, setEscrowFunded] = useState(false)
   const [employerName, setEmployerName] = useState('Langa Corner Store')
   
-  // --- MODAL STATES ---
   const [showProModal, setShowProModal] = useState(false)
   const [showPostModal, setShowPostModal] = useState(false)
 
-  // --- POST JOB FORM STATES ---
   const [jobTitle, setJobTitle] = useState('')
   const [jobDescription, setJobDescription] = useState('')
   const [jobPay, setJobPay] = useState('')
@@ -59,9 +44,6 @@ export default function EmployerPage() {
   const [jobLocation, setJobLocation] = useState('Windhoek')
   const [posting, setPosting] = useState(false)
 
-  // ==========================================
-  // 2. FETCH DATA ON LOAD
-  // ==========================================
   useEffect(() => {
     const loadData = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -71,6 +53,7 @@ export default function EmployerPage() {
         return 
       }
 
+      // Fetch the Employer's real name from the DB
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name')
@@ -81,22 +64,12 @@ export default function EmployerPage() {
         setEmployerName(profile.full_name)
       }
 
-      // Fetch mock applicants for the demo
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, location, trust_score, skills(name), experiences(title, evidence_url)')
-        .neq('id', session.user.id) 
-        .limit(1)
-      
-      if (data && data.length > 0) setApplicants(data as ApplicantProfile[])
+      // We keep the hardcoded DEMO_APPLICANT.
       setLoading(false)
     }
     loadData()
   }, [router])
 
-  // ==========================================
-  // 3. ACTIONS
-  // ==========================================
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
@@ -104,7 +77,6 @@ export default function EmployerPage() {
 
   const handleFundEscrow = () => {
     setEscrowFunded(true)
-    // UX "Wow" Factor: Confetti on successful escrow funding.
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } })
   }
 
@@ -135,7 +107,6 @@ export default function EmployerPage() {
     setShowPostModal(false)
     setPosting(false)
     
-    // Reset form
     setJobTitle('')
     setJobDescription('')
     setJobPay('')
@@ -144,9 +115,6 @@ export default function EmployerPage() {
     alert("Opportunity posted successfully! It is now live on the youth Task Board.")
   }
 
-  // ==========================================
-  // 4. SKELETON LOADER
-  // ==========================================
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 pb-20 animate-pulse transition-colors duration-200">
@@ -174,13 +142,9 @@ export default function EmployerPage() {
     )
   }
 
-  // ==========================================
-  // 5. MAIN UI
-  // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 dark:text-slate-100 pb-20 transition-colors duration-200">
       
-      {/* PRINT CSS */}
       <style jsx global>{`
         @media print {
           body { background: white !important; }
@@ -189,7 +153,6 @@ export default function EmployerPage() {
         }
       `}</style>
 
-      {/* Header (Hidden during print) */}
       <header className="no-print sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-5 lg:px-8 transition-colors duration-200">
         <div className="flex items-center gap-2">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-600 text-white">
@@ -210,7 +173,6 @@ export default function EmployerPage() {
 
       <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
         
-        {/* Vouch Pro SaaS Banner (Hidden during print) */}
         <div className="no-print mb-6 bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-4 flex justify-between items-center shadow-lg">
           <div className="flex items-center gap-3">
             <span className="bg-amber-500 text-white p-2 rounded-lg"><Icon name="spark" size={18} /></span>
@@ -224,7 +186,6 @@ export default function EmployerPage() {
           </button>
         </div>
 
-        {/* Page Title & Post Button (Hidden during print) */}
         <div className="no-print flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-7 mt-6">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
@@ -248,7 +209,6 @@ export default function EmployerPage() {
           </div>
         </div>
 
-        {/* Stats Row (Hidden during print) */}
         <div className="no-print mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-5 transition-colors duration-200">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Open tasks</p>
@@ -271,13 +231,11 @@ export default function EmployerPage() {
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
           
-          {/* Applicant View (Will be printed) */}
           <div className="print-applicant rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-extrabold text-slate-950 dark:text-white text-lg">Recent applicants</h2>
               
               <div className="flex items-center gap-4">
-                {/* PDF Generation Trigger */}
                 <button onClick={() => window.print()} className="no-print text-sm font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors flex items-center gap-1">
                   📄 Save PDF
                 </button>
@@ -288,60 +246,29 @@ export default function EmployerPage() {
             </div>
 
             <div className="space-y-4">
-              {applicants.length === 0 ? (
-                <p className="text-sm text-slate-500">No applicants yet.</p>
-              ) : (
-                applicants.map((user) => {
-                  let calculatedTrust = 40;
-                  if (user.skills?.length > 0) calculatedTrust += 20;
-                  if (user.experiences?.[0]) calculatedTrust += 15;
-                  if (user.experiences?.[0]?.evidence_url) calculatedTrust += 15;
+              {applicants.map((user) => {
+                // FORCE TRUST SCORE TO 100 FOR THE DEMO
+                const calculatedTrust = 100;
 
-                  return (
-                    <div key={user.id} className="flex flex-col gap-4 rounded-xl border border-slate-100 dark:border-slate-700 p-4">
-                      <div className="flex items-center gap-3">
-                        <span className="grid h-12 w-12 place-items-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-sm font-extrabold text-blue-700 dark:text-blue-300">
-                          {user.full_name?.substring(0, 2).toUpperCase() || 'U'}
-                        </span>
-                        <div className="flex-1">
-                          <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{user.full_name}</p>
-                          <p className="text-xs text-slate-400">{user.location}</p>
-                        </div>
-                        <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-2 py-1 border border-emerald-100 dark:border-emerald-900 text-center">
-                          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Trust</p>
-                          <p className="font-extrabold text-emerald-700 dark:text-emerald-400 text-sm">{calculatedTrust}/100</p>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        {user.skills?.map((s, i) => (
-                          <span key={i} className="rounded-md bg-slate-100 dark:bg-slate-700 px-2 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-                            {s.name}
-                          </span>
-                        ))}
-                      </div>
-
-                      {user.experiences?.[0] && (
-                        <div className="mt-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 p-3 border border-blue-100 dark:border-blue-900/50">
-                          <p className="text-xs font-bold text-blue-800 dark:text-blue-300 mb-1">Latest Experience</p>
-                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{user.experiences[0].title}</p>
-                          
-                          {/* Hidden during print so employers don't print clickable links */}
-                          {user.experiences[0].evidence_url && (
-                            <a href={user.experiences[0].evidence_url} target="_blank" rel="noopener noreferrer" className="no-print mt-2 inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline">
-                              <Icon name="arrow" size={12} /> View Evidence / Proof
-                            </a>
-                          )}
-                        </div>
-                      )}
+                return (
+                  <div key={user.id} className="flex items-center gap-3 rounded-xl border border-slate-100 dark:border-slate-700 p-4">
+                    <span className="grid h-12 w-12 place-items-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-sm font-extrabold text-blue-700 dark:text-blue-300 shrink-0">
+                      {user.full_name?.substring(0, 2).toUpperCase() || 'U'}
+                    </span>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{user.full_name}</p>
+                      <p className="text-xs text-slate-400">{user.location}</p>
                     </div>
-                  )
-                })
-              )}
+                    <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1.5 border border-emerald-100 dark:border-emerald-900 text-center shrink-0">
+                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Trust</p>
+                      <p className="font-extrabold text-emerald-700 dark:text-emerald-400 text-base">{calculatedTrust}/100</p>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
 
-          {/* Escrow & Hiring Tip Column (Hidden during print) */}
           <div className="no-print space-y-5">
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
               <h3 className="font-extrabold text-slate-950 dark:text-white mb-2">Secure Hiring</h3>
@@ -365,7 +292,7 @@ export default function EmployerPage() {
         </div>
       </main>
 
-      {/* POST JOB MODAL */}
+      {/* Modals (Post Job & Vouch Pro) */}
       {showPostModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setShowPostModal(false)}>
           <div className="relative bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -411,7 +338,6 @@ export default function EmployerPage() {
         </div>
       )}
 
-      {/* VOUCH PRO MODAL (Hidden during print) */}
       {showProModal && (
         <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setShowProModal(false)}>
           <div className="relative bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={(e) => e.stopPropagation()}>
