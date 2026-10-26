@@ -11,7 +11,6 @@ import { Icon, PageTitle } from '@/components/ui'
 // NEW COMPONENTS (Zero-Conflict Architecture)
 // ==========================================
 import NextStepCard from '@/components/NextStepCard'
-import EarningsSummary from '@/components/EarningsSummary'
 
 // ==========================================
 // 1. TYPESCRIPT TYPES
@@ -44,6 +43,10 @@ export default function DashboardPage() {
   const [expCount, setExpCount] = useState(0)
   const [profileStrength, setProfileStrength] = useState(0)
   const [recentTasks, setRecentTasks] = useState<Task[]>([])
+  
+  // Earnings metrics (Fetched directly here to fix the currency issue)
+  const [totalEarned, setTotalEarned] = useState(0)
+  const [gigCount, setGigCount] = useState(0)
 
   const router = useRouter()
 
@@ -81,6 +84,12 @@ export default function DashboardPage() {
         .eq('status', 'open')
         .limit(2)
 
+      // Step E: Fetch completed gigs for the Earnings Log
+      const { data: gigsData } = await supabase
+        .from('gigs')
+        .select('amount_zar')
+        .eq('user_id', session.user.id)
+
       // --- CALCULATE PROFILE STRENGTH (Max 100%) ---
       let score = 0
       if (data?.full_name && data?.location) score += 30
@@ -88,25 +97,23 @@ export default function DashboardPage() {
       if (skillsCountResult && skillsCountResult > 0) score += 25
       if (expCountResult && expCountResult > 0) score += 25
 
-      // Step E: Save to state
+      // --- CALCULATE TOTAL EARNINGS ---
+      const sum = gigsData?.reduce((acc, gig) => acc + (gig.amount_zar || 0), 0) || 0
+
+      // Step F: Save to state
       setProfile(data)
       setProfileStrength(score)
       setSkillsCount(skillsCountResult ?? 0)
       setExpCount(expCountResult ?? 0)
       setRecentTasks(taskData || [])
+      setTotalEarned(sum)
+      setGigCount(gigsData?.length || 0)
       setLoading(false)
     }
     
-    // 1. Fetch on initial load
     load()
-
-    // 2. Listen for the custom event from other pages (e.g., after logging a new experience)
     window.addEventListener('vouch-data-updated', load)
-
-    // 3. Cleanup the listener when the component unmounts
-    return () => {
-      window.removeEventListener('vouch-data-updated', load)
-    }
+    return () => window.removeEventListener('vouch-data-updated', load)
   }, [router])
 
   // --- DYNAMIC GREETING ---
@@ -160,8 +167,7 @@ export default function DashboardPage() {
         {/* 3-COLUMN GRID */}
         <section className="mt-7 grid gap-5 lg:grid-cols-[1.5fr_1fr_1fr]">
           
-          {/* CARD 1: DYNAMIC NEXT STEP (Replaced hardcoded Profile Tip)
-              Why: Addresses the "Intelligence" judge criteria by guiding the user. */}
+          {/* CARD 1: DYNAMIC NEXT STEP */}
           <NextStepCard expCount={expCount} skillsCount={skillsCount} />
 
           {/* CARD 2: PROFILE STRENGTH */}
@@ -169,7 +175,6 @@ export default function DashboardPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-bold text-slate-900 dark:text-slate-100">Profile strength</p>
-                {/* UPDATED: Changed text to address judge's "trust & self-reported" feedback */}
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">AI-Extracted & Vouched</p>
               </div>
               <span className="text-3xl font-extrabold text-slate-950 dark:text-white">{profileStrength}%</span>
@@ -205,10 +210,30 @@ export default function DashboardPage() {
             </ul>
           </div>
 
-          {/* CARD 3: TOTAL EARNED (Replaced by P1's Component)
-              Why: Proves the economic impact to the judges. P1 built this component 
-              to fetch its own data from the `gigs` table automatically. */}
-          <EarningsSummary />
+          {/* CARD 3: TOTAL EARNED (Hardcoded here to fix N$ currency) */}
+          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-6 transition-colors duration-200">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-900 dark:text-slate-100">Total Earned</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">From completed gigs</p>
+              </div>
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
+                <Icon name="briefcase" />
+              </span>
+            </div>
+            <p className="mt-5 text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
+              N${totalEarned.toLocaleString('en-ZA')}
+            </p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              From {gigCount} completed {gigCount === 1 ? 'gig' : 'gigs'}
+            </p>
+            <div className="mt-5 h-2 rounded-full bg-slate-100 dark:bg-slate-700">
+              <div className="h-full w-[40%] rounded-full bg-emerald-500" />
+            </div>
+            <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+              Keep logging gigs to grow your record.
+            </p>
+          </div>
 
         </section>
 
@@ -217,7 +242,6 @@ export default function DashboardPage() {
           <div className="flex items-end justify-between">
             <div>
               <h2 className="text-xl font-extrabold text-slate-950 dark:text-white">Good matches for you</h2>
-              {/* UPDATED: Changed "self-reported" text here too */}
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Based on your AI-extracted skills</p>
             </div>
             <button className="hidden text-sm font-bold text-blue-600 dark:text-blue-400 sm:block" onClick={() => router.push('/tasks')}>
@@ -243,7 +267,6 @@ export default function DashboardPage() {
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.employer_name}</p>
                   <div className="my-4 h-px bg-slate-100 dark:bg-slate-700" />
                   <div className="flex items-center justify-between text-sm">
-                    {/* UPDATED: Changed R to N$ */}
                     <span className="font-extrabold text-slate-900 dark:text-slate-100">N${task.pay_amount.toLocaleString()}</span>
                     <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400"><Icon name="clock" size={16} />{task.duration_days} {task.duration_days === 1 ? 'day' : 'days'}</span>
                   </div>
