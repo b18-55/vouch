@@ -222,7 +222,8 @@ export default function ProfilePage() {
   // 7. RENDER UI
   // ==========================================
   return (
-    <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 transition-colors duration-300">
+    // Added print-reset to remove screen padding/heights that cause page breaks
+    <div className="print-reset min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 transition-colors duration-300">
       
       {/* 
         PRINT CSS: When the user clicks "Save PDF", the browser triggers window.print().
@@ -231,11 +232,21 @@ export default function ProfilePage() {
       */}
       <style jsx global>{`
         @media print {
+          /* Gives the printed page a professional margin */
+          @page { margin: 1.5cm; }
+          
           body { background: white !important; }
           .no-print { display: none !important; }
           .print-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
           /* Reset the negative margin so the avatar doesn't get cut off on paper */
           .print-mt-0 { margin-top: 0 !important; }
+          
+          /* Forces the 2-column layout into a single column to stop horizontal bleed */
+          .print-grid { display: block !important; width: 100% !important; overflow: hidden !important; }
+          .print-w-full { width: 100% !important; max-width: 100% !important; }
+          
+          /* Removes screen heights so the content doesn't spill onto a 2nd page */
+          .print-reset { min-height: 0 !important; padding-bottom: 0 !important; }
         }
       `}</style>
 
@@ -292,9 +303,11 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="mt-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+        {/* Added print-grid to force single column on print */}
+        <div className="print-grid mt-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
           
-          <div className="space-y-5">
+          {/* Added print-w-full to ensure the left column fills the printed page */}
+          <div className="print-w-full space-y-5">
             
             {/* --- SKILLS SECTION --- */}
             <section className="print-card rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
