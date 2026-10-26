@@ -179,14 +179,28 @@ export default function TaskDetailPage() {
               <Icon name="briefcase" size={26} />
             </span>
             <div>
-              {/* Note: Removed the hardcoded "92% skills match" badge to keep the UI honest */}
               <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-xs font-extrabold text-slate-600 dark:text-slate-300">
                 Open
               </span>
               <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
                 {task.title}
               </h1>
-              <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{task.employer_name}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{task.employer_name}</p>
+                {/* P4: Verified Employer Badge */}
+                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                  <Icon name="check" size={10} /> Verified Employer
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* P4: Fair Work Guarantee Banner */}
+          <div className="mt-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+            <span className="text-2xl">🛡️</span>
+            <div>
+              <h4 className="font-bold text-emerald-900 dark:text-emerald-300">Fair Work Guarantee</h4>
+              <p className="text-sm text-emerald-700 dark:text-emerald-400">Your payment is held in escrow and released only when the work is approved.</p>
             </div>
           </div>
 

@@ -13,7 +13,6 @@ function Logo() {
           <path d="m8 3 4 7 4-7" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
         </svg>
       </span>
-      {/* FIX: Added dark:text-white to the logo text */}
       <span className="text-xl font-extrabold tracking-tight text-slate-950 dark:text-white">Vouch</span>
     </div>
   )
@@ -24,7 +23,6 @@ function Logo() {
 // ==========================================
 export default function Home() {
   return (
-    // FIX: Added dark:bg-slate-900 to the main wrapper and a smooth transition
     <main className="min-h-screen overflow-hidden bg-[#f7f9fc] dark:bg-slate-900 transition-colors duration-200">
       
       {/* --- TOP NAVIGATION BAR --- */}
@@ -43,18 +41,15 @@ export default function Home() {
         {/* LEFT SIDE: Text & Call to Action */}
         <div className="relative z-10">
           
-          {/* FIX: Added dark mode classes to the small badge */}
           <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-100 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-400">
             <Icon name="spark" size={15} />
             Your experience counts
           </span>
 
-          {/* FIX: Added dark:text-white to the main headline */}
           <h1 className="max-w-2xl text-5xl font-extrabold leading-[1.05] tracking-[-0.045em] text-slate-950 dark:text-white sm:text-6xl lg:text-7xl">
             Turn your hustle into your <span className="text-blue-600 dark:text-blue-500">next opportunity.</span>
           </h1>
 
-          {/* FIX: Added dark:text-slate-400 to the sub-headline */}
           <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600 dark:text-slate-400">
             Whether you want to earn or hire, Vouch turns real-world experience into trusted skills and better matches.
           </p>
@@ -64,7 +59,17 @@ export default function Home() {
             <Button className="min-h-12 px-6" kind="secondary" href="/signup">Hire talent</Button>
           </div>
 
-          {/* FIX: Added dark:text-slate-400 to the trust badge */}
+          {/* P4: Try Live Demo Button */}
+          <div className="mt-4">
+            <button 
+              onClick={() => window.location.href = '/login?email=judge@vouch.app&password=Password123!'}
+              className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-900 bg-transparent px-6 py-3 font-bold text-slate-900 hover:bg-slate-100 dark:border-white dark:text-white dark:hover:bg-slate-800 transition w-full sm:w-auto"
+            >
+              <Icon name="spark" size={18} />
+              Try Live Demo
+            </button>
+          </div>
+
           <p className="mt-5 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
             <Icon name="check" size={17} />
             Free for youth · Short, meaningful work for employers
@@ -74,14 +79,11 @@ export default function Home() {
         {/* RIGHT SIDE: The Floating Card Illustration */}
         <div className="relative mx-auto w-full max-w-lg">
           
-          {/* FIX: Adjusted background blur colors for dark mode */}
           <div className="absolute -left-10 top-12 h-64 w-64 rounded-full bg-blue-200/50 dark:bg-blue-900/30 blur-3xl" />
           <div className="absolute -right-10 bottom-4 h-56 w-56 rounded-full bg-amber-200/50 dark:bg-amber-900/20 blur-3xl" />
           
-          {/* FIX: Added dark:bg-slate-800 and dark:border-slate-700 to the main card */}
           <div className="relative rotate-2 rounded-[2rem] border border-white dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-[0_30px_80px_-30px_rgba(37,99,235,.35)] transition-colors duration-200">
             
-            {/* Dark "Profile Strength" widget (already dark, no change needed) */}
             <div className="rounded-2xl bg-slate-950 p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -97,10 +99,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Two small job/skill cards below the dark widget */}
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              
-              {/* FIX: Added dark mode classes to Card 1 */}
               <div className="rounded-2xl border border-slate-100 dark:border-slate-700 p-4">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                   <Icon name="briefcase" />
@@ -109,7 +108,6 @@ export default function Home() {
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">4 skills found</p>
               </div>
 
-              {/* FIX: Added dark mode classes to Card 2 */}
               <div className="rounded-2xl border border-slate-100 dark:border-slate-700 p-4">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                   <Icon name="wallet" />
@@ -117,11 +115,35 @@ export default function Home() {
                 <p className="mt-4 text-sm font-bold text-slate-900 dark:text-white">R850 · 2 days</p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">92% skills match</p>
               </div>
-
             </div>
+
           </div>
         </div>
       </section>
+
+      {/* P4: Social Proof Stats */}
+      <section className="mx-auto max-w-7xl px-5 pb-20 lg:px-8">
+        <div className="grid grid-cols-3 gap-4 border-t border-slate-200 dark:border-slate-800 pt-12 text-center max-w-3xl mx-auto">
+          <div>
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">500+</p>
+            <p className="text-sm font-semibold text-slate-500">Youth Onboarded</p>
+          </div>
+          <div>
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">R45,000</p>
+            <p className="text-sm font-semibold text-slate-500">Paid Out</p>
+          </div>
+          <div>
+            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">12</p>
+            <p className="text-sm font-semibold text-slate-500">Active Gigs</p>
+          </div>
+        </div>
+      </section>
+
+      {/* P4: Anti-Scam Footer Banner */}
+      <div className="bg-amber-50 dark:bg-amber-950/30 p-4 text-center text-sm font-bold text-amber-800 dark:text-amber-300 border-t border-amber-200 dark:border-amber-900">
+        🔒 Vouch is 100% free for youth. Never pay anyone to apply for a gig.
+      </div>
+
     </main>
   )
 }

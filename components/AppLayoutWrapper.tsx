@@ -1,78 +1,56 @@
-'use client'
-// Client component: Uses usePathname to detect the current URL and conditionally render the layout.
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import AppLayoutWrapper from '@/components/AppLayoutWrapper'
+import Script from 'next/script'
+import FakeToast from '@/components/FakeToast'
 
-import { usePathname } from 'next/navigation'
-import Sidebar from './Sidebar'
-import HeaderActions from './HeaderActions'
-import BottomNav from './BottomNav'
+const inter = Inter({ subsets: ['latin'] })
 
-export default function AppLayoutWrapper({ children }: { children: React.ReactNode }) {
-  // This hook grabs the current URL path (e.g., "/dashboard" or "/signup")
-  const pathname = usePathname()
+export const metadata: Metadata = {
+  title: 'Vouch - Turn your hustle into your next opportunity',
+  description: 'Vouch turns real-world experience into trusted skills and better matches.',
+}
 
-  // ==========================================
-  // 1. DEFINE PUBLIC PAGES (No Sidebar/Header)
-  // ==========================================
-  // We check if the current URL matches any of these.
-  const isPublicPage = 
-    pathname === '/' || 
-    pathname === '/login' || 
-    pathname === '/signup' || // THE FIX: Changed from '/register' to '/signup'
-    pathname === '/roles' ||  // THE FIX: Added the Workspace Chooser page
-    pathname === '/employer' || 
-    pathname === '/admin' ||
-    pathname === '/stats' || 
-    pathname.startsWith('/p/') // <--- Public Profile Pages (e.g., /p/hazel-123)
-
-  // ==========================================
-  // 2. RENDER PUBLIC LAYOUT (Clean & Full Screen)
-  // ==========================================
-  // If the URL is a public page, we skip the sidebar entirely 
-  // and just render the page content on a clean background.
-  if (isPublicPage) {
-    return <main className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950">{children}</main>
-  }
-
-  // ==========================================
-  // 3. RENDER AUTHENTICATED LAYOUT (Dashboard, Profile, etc.)
-  // ==========================================
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <div className="flex min-h-screen bg-[#f7f9fc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      
-      {/* --- DESKTOP SIDEBAR --- */}
-      {/* Hidden on mobile (hidden md:flex), fixed to the left side */}
-      <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r border-slate-200 dark:border-slate-800 z-40">
-        <Sidebar />
-      </div>
-
-      {/* --- MAIN CONTENT WRAPPER --- */}
-      {/* Pushed to the right by 64 units to make room for the sidebar (md:pl-64) */}
-      <div className="flex-1 flex flex-col md:pl-64 h-screen overflow-hidden">
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} bg-[#f7f9fc] dark:bg-slate-950 transition-colors duration-200`}>
+        {/* 
+          FIX: Swapped raw <script> for Next.js <Script> component to prevent console errors.
+          Kept the dark mode logic to prevent the white flash on load.
+        */}
+        <Script
+          id="theme-script"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var theme = localStorage.getItem('theme');
+                  if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
         
-        {/* --- GLOBAL TOP HEADER --- */}
-        {/* Sticky to the top, contains the notification bell and profile avatar */}
-        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 sm:px-6">
-          <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 hidden sm:block">
-            Your experience counts.
-          </span>
-          <div className="flex items-center gap-4 ml-auto">
-            <HeaderActions />
-          </div>
-        </header>
-
-        {/* --- PAGE CONTENT --- */}
-        {/* This is where your actual pages (Dashboard, Profile, Tasks) render */}
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+        <AppLayoutWrapper>
           {children}
-        </main>
-      </div>
-      
-      {/* --- MOBILE BOTTOM NAVIGATION --- */}
-      {/* Only shows on phones (md:hidden), fixed to the bottom */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <BottomNav />
-      </div>
-      
-    </div>
+        </AppLayoutWrapper>
+
+        {/* P4: Fake Toast Notification */}
+        <FakeToast message="Welcome to Vouch! 🚀" />
+        
+      </body>
+    </html>
   )
 }

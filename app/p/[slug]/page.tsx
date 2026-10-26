@@ -18,7 +18,7 @@ type PublicProfile = {
 }
 
 type Skill = { name: string }
-type Experience = { title: string, description: string }
+type Experience = { title: string, description: string, evidence_url?: string | null }
 
 export default function PublicProfilePage() {
   
@@ -65,7 +65,7 @@ export default function PublicProfilePage() {
         // Fetch Skills and Experiences simultaneously using Promise.all
         const [skillsRes, expRes] = await Promise.all([
           supabase.from('skills').select('name').eq('profile_id', profileData.id),
-          supabase.from('experiences').select('title, description').eq('profile_id', profileData.id)
+          supabase.from('experiences').select('title, description, evidence_url').eq('profile_id', profileData.id)
         ])
 
         if (skillsRes.data) setSkills(skillsRes.data)
@@ -224,6 +224,13 @@ export default function PublicProfilePage() {
                   <div key={i} className="rounded-xl border border-slate-100 dark:border-slate-800 p-4">
                     <p className="text-sm font-bold text-slate-900 dark:text-white">{exp.title}</p>
                     <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 line-clamp-3">{exp.description}</p>
+                    
+                    {/* P4 EVIDENCE LINK */}
+                    {exp.evidence_url && (
+                      <a href={exp.evidence_url} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs font-bold text-blue-600 hover:underline dark:text-blue-400">
+                        🔗 View Evidence
+                      </a>
+                    )}
                   </div>
                 ))
               )}
