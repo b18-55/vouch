@@ -3,26 +3,46 @@
 // must run in the browser (Client Component) rather than purely on the server.
 
 // --- IMPORTS ---
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button, Icon } from '@/components/ui'
+import { toPng } from 'html-to-image'
 
 // ==========================================
-// 1. TYPESCRIPT TYPES
+// 1. MODERN SVG ICONS (From P2)
+// ==========================================
+const MapPinIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+)
+const BadgeCheckIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.306 4.491 4.491 0 01-1.307-3.498A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd"/></svg>
+)
+const SparklesIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+)
+const PencilIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+)
+const ShareNodesIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+)
+const DownloadIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+)
+
+// ==========================================
+// 2. TYPESCRIPT TYPES
 // ==========================================
 type Profile = {
   full_name: string | null
   location: string | null
   bio: string | null
   trust_score: number | null
-  public_slug: string | null // Used for the public shareable link (/p/[slug])
+  public_slug: string | null 
 }
 
-type Skill = { 
-  id: string // Required for React keys so it doesn't yell at us
-  name: string 
-}
+type Skill = { id: string; name: string }
 
 type Experience = { 
   id: string
@@ -36,18 +56,21 @@ type Experience = {
 export default function ProfilePage() {
   const router = useRouter()
   
-  // --- CORE STATE ---
+  // --- REFS & STATE ---
+  const profileCardRef = useRef<HTMLDivElement>(null)
+
   const [profile, setProfile] = useState<Profile | null>(null)
   const [skills, setSkills] = useState<Skill[]>([])
   const [experiences, setExperiences] = useState<Experience[]>([])
   const [loading, setLoading] = useState(true)
 
-  // --- SEE MORE TOGGLES ---
-  // Keeps the profile clean on mobile. If true, shows all items.
+  // State to control the Custom Share Menu Modal
+  const [showShareMenu, setShowShareMenu] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+
   const [showAllSkills, setShowAllSkills] = useState(false)
   const [showAllExperiences, setShowAllExperiences] = useState(false)
 
-  // --- UI INTERACTION STATE ---
   const [deletingId, setDeletingId] = useState<string | null>(null) 
   const [editingExp, setEditingExp] = useState<Experience | null>(null) 
   const [editTitle, setEditTitle] = useState('') 
@@ -55,9 +78,7 @@ export default function ProfilePage() {
   const [editDescription, setEditDescription] = useState('') 
   const [savingEdit, setSavingEdit] = useState(false) 
 
-  // ==========================================
-  // 2. FETCH DATA ON LOAD
-  // ==========================================
+  // --- FETCH DATA ON LOAD ---
   useEffect(() => {
     const loadProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -79,18 +100,18 @@ export default function ProfilePage() {
   }, [router]) 
 
   // ==========================================
-  // 3. SHARE PROFILE LOGIC
+  // ACTION 1: SHARE LINK (Text/WhatsApp)
   // ==========================================
-  const shareProfile = async () => {
+  const shareLink = async () => {
+    setShowShareMenu(false)
+
     const slug = profile?.public_slug
     if (!slug) return alert("Profile link not ready yet. Try reloading.")
-
+    
     const url = `${window.location.origin}/p/${slug}`
     const text = 'Check out my verified skills on Vouch!'
-    
     const shareData = { title: 'My Vouch Profile', text: text, url: url }
-
-    // Use native OS share on phones, fallback to WhatsApp on desktop
+    
     if (navigator.share) {
       try { await navigator.share(shareData) } catch (err) { console.log('Share cancelled') }
     } else {
@@ -99,30 +120,47 @@ export default function ProfilePage() {
   }
 
   // ==========================================
-  // 4. EDIT & DELETE LOGIC
+  // ACTION 2: DOWNLOAD AS IMAGE
   // ==========================================
-  
+  const downloadProfile = async () => {
+    if (!profileCardRef.current) return
+
+    try {
+      setDownloading(true)
+      const dataUrl = await toPng(profileCardRef.current, { 
+        cacheBust: true,
+        backgroundColor: '#0f172a'
+      })
+      
+      const link = document.createElement('a')
+      link.download = `${profile?.full_name?.replace(/\s+/g, '-').toLowerCase() || 'vouch'}-profile.png`
+      link.href = dataUrl
+      link.click()
+      
+    } catch (err) {
+      console.error('Error downloading image:', err)
+      alert('Could not download the profile image. Please try again.')
+    } finally {
+      setDownloading(false)
+      setShowShareMenu(false)
+    }
+  }
+
+  // ==========================================
+  // EDIT & DELETE EXPERIENCE LOGIC
+  // ==========================================
   const handleDeleteExperience = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this experience?')) return
     setDeletingId(id) 
-
     try {
       const { error: expError } = await supabase.from('experiences').delete().eq('id', id)
       if (expError) throw expError
-
-      // The database has ON DELETE CASCADE, but we manually delete skills just in case.
       await supabase.from('skills').delete().eq('experience_id', id)
-
-      // Remove it from the UI instantly
       setExperiences((prev) => prev.filter((exp) => exp.id !== id))
-
-      // Dispatch a custom event so the Sidebar/Dashboard can update their stats
       window.dispatchEvent(new Event('vouch-data-updated'))
-
     } catch (err: unknown) {
       console.error('Error deleting experience:', err)
-      const message = err instanceof Error ? err.message : 'Failed to delete experience.'
-      alert(message)
+      alert(err instanceof Error ? err.message : 'Failed to delete experience.')
     } finally {
       setDeletingId(null)
     }
@@ -139,46 +177,39 @@ export default function ProfilePage() {
     e.preventDefault()
     if (!editingExp) return
     setSavingEdit(true)
-
     try {
       const { error } = await supabase
         .from('experiences')
         .update({ title: editTitle, type: editType, description: editDescription })
         .eq('id', editingExp.id)
-
       if (error) throw error
-
-      // Update the UI instantly
       setExperiences((prev) =>
         prev.map((exp) => exp.id === editingExp.id ? { ...exp, title: editTitle, type: editType, description: editDescription } : exp)
       )
-
       setEditingExp(null)
       window.dispatchEvent(new Event('vouch-data-updated'))
-
     } catch (err: unknown) {
       console.error('Error updating experience:', err)
-      const message = err instanceof Error ? err.message : 'Failed to update experience.'
-      alert(message)
+      alert(err instanceof Error ? err.message : 'Failed to update experience.')
     } finally {
       setSavingEdit(false)
     }
   }
 
   // ==========================================
-  // 5. LOADING SKELETON
+  // LOADING SKELETON
   // ==========================================
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 animate-pulse transition-colors duration-300">
         <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
           <div className="overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-            <div className="h-28 bg-slate-200 dark:bg-slate-800" />
-            <div className="px-5 pb-7 sm:px-8">
-              <div className="-mt-12 flex items-end gap-4">
-                <div className="h-24 w-24 rounded-3xl bg-slate-300 dark:bg-slate-700 border-4 border-white dark:border-slate-900" />
-                <div className="pb-2 space-y-3">
-                  <div className="h-6 w-48 bg-slate-300 dark:bg-slate-700 rounded" />
+            <div className="h-32 sm:h-40 bg-slate-200 dark:bg-slate-800" />
+            <div className="px-5 sm:px-8 pb-8">
+              <div className="-mt-16 sm:-mt-20 flex flex-col sm:flex-row items-center sm:items-end gap-5">
+                <div className="h-24 w-24 sm:h-32 sm:w-32 rounded-3xl bg-slate-300 dark:bg-slate-700 border-4 border-white dark:border-slate-900" />
+                <div className="pb-2 space-y-3 flex flex-col items-center sm:items-start">
+                  <div className="h-8 w-48 bg-slate-300 dark:bg-slate-700 rounded" />
                   <div className="h-4 w-32 bg-slate-200 dark:bg-slate-800 rounded" />
                 </div>
               </div>
@@ -190,17 +221,14 @@ export default function ProfilePage() {
   }
 
   // ==========================================
-  // 6. HELPER CALCULATIONS
+  // HELPER CALCULATIONS
   // ==========================================
-  
   const initials = profile?.full_name 
     ? profile.full_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() 
     : 'U'
 
-  // Deduplicate skills so "Baking" only shows once, even if learned in 3 places.
   const uniqueSkills = Array.from(new Map(skills.map(skill => [skill.name, skill])).values())
 
-  // Dynamic Profile Strength calculation
   let score = 0
   if (profile?.full_name && profile?.location) score += 30
   if (profile?.bio) score += 20
@@ -219,33 +247,21 @@ export default function ProfilePage() {
   const displayedExperiences = showAllExperiences ? experiences : experiences.slice(0, 3)
 
   // ==========================================
-  // 7. RENDER UI
+  // RENDER UI
   // ==========================================
   return (
-    // Added print-reset to remove screen padding/heights that cause page breaks
     <div className="print-reset min-h-screen bg-[#f7f9fc] dark:bg-slate-950 pb-20 transition-colors duration-300">
       
-      {/* 
-        PRINT CSS: When the user clicks "Save PDF", the browser triggers window.print().
-        This style block ensures ONLY the profile cards are printed, hiding the background, 
-        action buttons, and the sidebar.
-      */}
+      {/* PRINT CSS */}
       <style jsx global>{`
         @media print {
-          /* Gives the printed page a professional margin */
           @page { margin: 1.5cm; }
-          
           body { background: white !important; }
           .no-print { display: none !important; }
           .print-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
-          /* Reset the negative margin so the avatar doesn't get cut off on paper */
           .print-mt-0 { margin-top: 0 !important; }
-          
-          /* Forces the 2-column layout into a single column to stop horizontal bleed */
           .print-grid { display: block !important; width: 100% !important; overflow: hidden !important; }
           .print-w-full { width: 100% !important; max-width: 100% !important; }
-          
-          /* Removes screen heights so the content doesn't spill onto a 2nd page */
           .print-reset { min-height: 0 !important; padding-bottom: 0 !important; }
         }
       `}</style>
@@ -253,64 +269,69 @@ export default function ProfilePage() {
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
         
         {/* --- PROFILE HEADER CARD --- */}
-        <div className="print-card overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-          <div className="h-28 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 no-print" />
+        <div ref={profileCardRef} className="print-card overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+          <div className="h-32 sm:h-40 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 no-print" />
           
-          <div className="px-5 pb-7 sm:px-8">
-            {/* Added print-mt-0 to fix the cut-off avatar when the banner is hidden */}
-            <div className="-mt-12 print-mt-0 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+          <div className="px-5 pb-8 sm:px-8">
+            <div className="-mt-16 sm:-mt-20 print-mt-0 flex flex-col md:flex-row items-center md:items-end justify-between gap-6">
               
-              <div className="flex items-end gap-4">
-                <div className="grid h-24 w-24 place-items-center rounded-3xl border-4 border-white dark:border-slate-900 bg-blue-100 dark:bg-blue-900/50 text-2xl font-extrabold text-blue-700 dark:text-blue-300 shadow-sm">
+              {/* Left Side: Avatar + Info */}
+              <div className="flex flex-col md:flex-row items-center md:items-end gap-4 md:gap-5 flex-1 min-w-0 w-full">
+                <div className="grid h-24 w-24 sm:h-32 sm:w-32 shrink-0 place-items-center rounded-3xl border-4 border-white dark:border-slate-900 bg-gradient-to-br from-blue-500 to-cyan-400 text-3xl font-extrabold text-white shadow-lg">
                   {initials}
                 </div>
-                <div className="pb-1">
-                  <h1 className="text-2xl font-extrabold text-slate-950 dark:text-white">
+                
+                <div className="flex flex-col items-center md:items-start text-center md:text-left pb-1 md:pb-2 flex-1 min-w-0">
+                  <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-950 dark:text-white tracking-tight break-words w-full">
                     {profile?.full_name || 'Your Name'}
                   </h1>
-                  <p className="mt-1 flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
-                    <Icon name="location" size={15} />
-                    {profile?.location || 'Location not set'}
+                  <p className="mt-1.5 flex items-center justify-center md:justify-start gap-1.5 text-sm font-medium text-slate-500 dark:text-slate-300">
+                    <MapPinIcon />
+                    <span className="truncate">{profile?.location || 'Location not set'}</span>
                   </p>
                   
-                  {/* Dynamic Trust Score Badge */}
-                  <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-2 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                    <Icon name="check" size={12} /> Trust Score: {dynamicTrust}/100
+                  <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 shadow-sm">
+                    <BadgeCheckIcon /> Trust Score: {dynamicTrust}/100
                   </div>
                 </div>
               </div>
               
-              {/* Action Buttons (Hidden during print) */}
-              <div className="no-print flex gap-2">
-                <Button kind="secondary" onClick={() => window.print()} className="bg-slate-100 text-slate-700 border-slate-200">
+              {/* Right Side: Action Buttons */}
+              <div className="no-print flex w-full md:w-auto gap-2 justify-center md:justify-end shrink-0">
+                <button onClick={() => window.print()} className="flex-1 md:flex-none flex items-center justify-center gap-2 rounded-xl bg-slate-100 text-slate-700 px-4 py-2.5 text-sm font-bold border border-slate-200 hover:bg-slate-200 transition shadow-sm">
                   📄 Save PDF
-                </Button>
-                <Button kind="secondary" onClick={() => alert("Payment gateway coming soon!")} className="bg-amber-50 text-amber-700 border-amber-200">
-                  <Icon name="spark" size={16} /> Boost
-                </Button>
-                <Button kind="secondary" onClick={() => router.push('/profile/edit')}>
-                  <Icon name="edit" size={17} /> Edit
-                </Button>
-                <Button kind="primary" onClick={shareProfile}>
-                  <Icon name="arrow" size={17} /> Share
-                </Button>
+                </button>
+                <button onClick={() => alert("Payment gateway coming soon!")} className="flex-1 md:flex-none flex items-center justify-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 px-4 py-2.5 text-sm font-bold border border-amber-200 dark:border-amber-900/50 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition shadow-sm">
+                  <SparklesIcon /> Boost
+                </button>
+                <button onClick={() => setShowShareMenu(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 rounded-xl bg-blue-600 text-white px-5 py-2.5 text-sm font-bold shadow-md hover:bg-blue-700 transition">
+                  <ShareNodesIcon /> Share
+                </button>
               </div>
             </div>
             
-            <p className="mt-6 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-              {profile?.bio || 'No bio added yet. Tell employers a bit about yourself.'}
-            </p>
+            {/* --- BIO SECTION WITH INLINE EDIT BUTTON --- */}
+            <div className="mt-8 flex items-start justify-between gap-4 border-t border-slate-100 dark:border-slate-800/60 pt-4">
+              <p className="max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400 text-left">
+                {profile?.bio || 'Add a bio to attract more opportunities and build trust with employers.'}
+              </p>
+              <button 
+                onClick={() => router.push('/profile/edit')} 
+                title="Edit Profile"
+                className="no-print shrink-0 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-blue-600 dark:hover:bg-slate-800 dark:hover:text-blue-400 transition-colors"
+              >
+                <PencilIcon />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Added print-grid to force single column on print */}
-        <div className="print-grid mt-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+        <div className="print-grid mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
           
-          {/* Added print-w-full to ensure the left column fills the printed page */}
-          <div className="print-w-full space-y-5">
+          <div className="print-w-full space-y-6">
             
-            {/* --- SKILLS SECTION --- */}
-            <section className="print-card rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+            {/* SKILLS SECTION */}
+            <section className="print-card rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-extrabold text-slate-950 dark:text-white">Skills</h2>
                 <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -343,8 +364,8 @@ export default function ProfilePage() {
               )}
             </section>
 
-            {/* --- EXPERIENCE TIMELINE SECTION --- */}
-            <section className="print-card rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+            {/* EXPERIENCE TIMELINE SECTION */}
+            <section className="print-card rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
               <h2 className="text-lg font-extrabold text-slate-950 dark:text-white">Experience</h2>
               
               <div className="mt-5 space-y-6">
@@ -356,7 +377,7 @@ export default function ProfilePage() {
                       key={exp.id}
                       className="relative flex items-start justify-between gap-4 pl-7 before:absolute before:left-[5px] before:top-6 before:h-[calc(100%+1.5rem)] before:w-px before:bg-slate-200 dark:before:bg-slate-700 last:before:hidden" 
                     >
-                      <span className="absolute left-0 top-1 h-3 w-3 rounded-full border-[3px] border-blue-100 dark:border-slate-800 bg-blue-600" />
+                      <span className="absolute left-0 top-1.5 h-3 w-3 rounded-full border-[3px] border-blue-100 dark:border-slate-800 bg-blue-600" />
                       
                       <div className="flex-1">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">{exp.title}</p>
@@ -367,15 +388,13 @@ export default function ProfilePage() {
                            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{exp.description}</p>
                         )}
                         
-                        {/* Evidence Badge */}
                         {exp.evidence_url && (
-                          <a href={exp.evidence_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                          <a href={exp.evidence_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline">
                             <Icon name="arrow" size={12} /> Evidence Attached
                           </a>
                         )}
                       </div>
 
-                      {/* Edit / Delete Buttons (Hidden during print) */}
                       <div className="no-print flex items-center gap-1">
                         <button type="button" onClick={() => handleOpenEdit(exp)} title="Edit" className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/50 transition">
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -400,13 +419,13 @@ export default function ProfilePage() {
             </section>
           </div>
 
-          {/* --- PROFILE STRENGTH SIDEBAR (Hidden during print) --- */}
-          <aside className="no-print space-y-5">
-            <div className="rounded-2xl bg-slate-950 dark:bg-slate-900 border dark:border-slate-800 p-6 text-white">
+          {/* PROFILE STRENGTH SIDEBAR */}
+          <aside className="no-print space-y-6">
+            <div className="rounded-2xl bg-slate-950 dark:bg-slate-900 border dark:border-slate-800 p-6 text-white shadow-sm">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-bold">Profile strength</p>
-                  <p className="mt-1 text-xs text-slate-400">Self-reported</p>
+                  <p className="mt-1 text-xs text-slate-400">AI-Extracted & Vouched</p>
                 </div>
                 <p className="text-3xl font-extrabold">{score}%</p>
               </div>
@@ -424,7 +443,44 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      {/* --- EDIT EXPERIENCE MODAL (Hidden during print) --- */}
+      {/* CUSTOM SHARE MENU MODAL */}
+      {showShareMenu && (
+        <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setShowShareMenu(false)}>
+          <div className="relative bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            
+            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white mb-2">Share Profile</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">How would you like to send your profile?</p>
+            
+            <div className="space-y-3">
+              <button onClick={shareLink} className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left group">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                  <ShareNodesIcon />
+                </span>
+                <div>
+                  <p className="font-bold text-slate-900 dark:text-white">Share Link</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Send via WhatsApp or copy URL</p>
+                </div>
+              </button>
+
+              <button onClick={downloadProfile} disabled={downloading} className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left group disabled:opacity-50">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                  <DownloadIcon />
+                </span>
+                <div>
+                  <p className="font-bold text-slate-900 dark:text-white">{downloading ? 'Saving...' : 'Download Image'}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Save as PNG to send offline</p>
+                </div>
+              </button>
+            </div>
+            
+            <button onClick={() => setShowShareMenu(false)} className="mt-4 w-full py-2 text-center text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT EXPERIENCE MODAL */}
       {editingExp && (
         <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-xl border border-slate-200 dark:border-slate-700">

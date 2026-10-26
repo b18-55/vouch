@@ -1,9 +1,9 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-// Added Icon import
 import { Icon } from '@/components/ui'
 
 export default function LoginPage() {
@@ -14,24 +14,37 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  
+  // Use Next.js useSearchParams to read the URL query string
+  const searchParams = useSearchParams()
+  // If there is a ?redirect= in the URL, grab it. Otherwise, it's null.
+  const redirectParam = searchParams.get('redirect')
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    
     const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+    
     if (loginError) {
       setError(loginError.message)
       setLoading(false)
       return
     }
-    router.push('/dashboard')
+
+    // ==========================================
+    // SMART REDIRECT LOGIC
+    // ==========================================
+    // If the URL had a ?redirect=/employer param, use it. 
+    // If not, fallback to the default youth dashboard.
+    const destination = redirectParam || '/dashboard'
+    
+    router.push(destination)
   }
 
   return (
     <main className="grid min-h-screen bg-white dark:bg-slate-900 transition-colors duration-200 lg:grid-cols-2">
-      
-      {/* Left Side: Login Form */}
       <section className="flex flex-col px-5 py-6 sm:px-12 lg:px-16 dark:bg-slate-900">
         
         <Link href="/" className="w-fit flex items-center gap-2.5">
@@ -47,8 +60,6 @@ export default function LoginPage() {
           <p className="mt-2 text-slate-500 dark:text-slate-400">Use the same secure login, whichever side of Vouch you use.</p>
           
           <form className="mt-8 space-y-5" onSubmit={handleLogin}>
-            
-            {/* Email Input with Icon */}
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Email address</span>
               <span className="relative block">
@@ -60,14 +71,12 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)} 
                   required
-                  // Added pl-10 to accommodate the icon
                   className="h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 text-sm text-slate-900 dark:text-white outline-none transition placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950/50" 
                   placeholder="name@company.com" 
                 />
               </span>
             </label>
             
-            {/* Password Input with Icon */}
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Password</span>
               <span className="relative block">
@@ -79,7 +88,6 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)} 
                   required
-                  // Added pl-10 to accommodate the icon
                   className="h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-12 text-sm text-slate-900 dark:text-white outline-none transition placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950/50" 
                   placeholder="At least 8 characters" 
                 />
@@ -129,12 +137,24 @@ export default function LoginPage() {
           </form>
           
           <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
-            New to Vouch? <Link href="/signup" className="font-bold text-blue-600 dark:text-blue-400 hover:underline">Create an account</Link>
+            New to Vouch? 
+            {/* 
+              ==========================================
+              PRESERVE REDIRECT ON SIGNUP LINK
+              ==========================================
+              If they click "Create an account", we pass the redirectParam 
+              along so the signup page knows they came from "Hire Talent".
+            */}
+            <Link 
+              href={redirectParam ? `/signup?redirect=${redirectParam}` : '/signup'} 
+              className="font-bold text-blue-600 dark:text-blue-400 hover:underline ml-1"
+            >
+              Create an account
+            </Link>
           </p>
         </div>
       </section>
 
-      {/* Right Side: Decorative Box */}
       <section className="relative hidden overflow-hidden bg-blue-700 p-16 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute -right-28 -top-28 h-96 w-96 rounded-full border-[70px] border-blue-600" />
         <div className="relative mt-24 max-w-lg">
@@ -146,7 +166,6 @@ export default function LoginPage() {
           <div><p className="text-3xl font-extrabold">100%</p><p className="text-sm text-blue-200">free for youth</p></div>
         </div>
       </section>
-      
     </main>
   )
 }

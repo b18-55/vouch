@@ -1,12 +1,22 @@
 'use client'
 
+// ==========================================
+// EMPLOYER DASHBOARD PAGE
+// ==========================================
+// This page represents the "Demand Side" of the Vouch platform. 
+// It allows employers to view candidate profiles, see their trust scores, 
+// fund escrow for a job, and post new opportunities to the database.
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button, Icon, PageTitle } from '@/components/ui'
 import confetti from 'canvas-confetti'
 
-// --- TYPESCRIPT INTERFACE ---
+// ==========================================
+// 1. TYPESCRIPT INTERFACES
+// ==========================================
 interface ApplicantProfile {
   id: string
   full_name: string | null
@@ -29,23 +39,68 @@ interface ApplicantProfile {
  * web UI (navigation, stats, escrow sidebar).
  */
 export default function EmployerPage() {
+  const router = useRouter()
+  
+  // --- CORE STATE ---
   const [applicants, setApplicants] = useState<ApplicantProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [escrowFunded, setEscrowFunded] = useState(false)
+  const [employerName, setEmployerName] = useState('Langa Corner Store')
+  
+  // --- MODAL STATES ---
   const [showProModal, setShowProModal] = useState(false)
+  const [showPostModal, setShowPostModal] = useState(false)
 
+  // --- POST JOB FORM STATES ---
+  const [jobTitle, setJobTitle] = useState('')
+  const [jobDescription, setJobDescription] = useState('')
+  const [jobPay, setJobPay] = useState('')
+  const [jobDuration, setJobDuration] = useState('1')
+  const [jobLocation, setJobLocation] = useState('Windhoek')
+  const [posting, setPosting] = useState(false)
+
+  // ==========================================
+  // 2. FETCH DATA ON LOAD
+  // ==========================================
   useEffect(() => {
     const loadData = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        router.replace('/login?redirect=/employer')
+        return 
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', session.user.id)
+        .single()
+        
+      if (profile?.full_name) {
+        setEmployerName(profile.full_name)
+      }
+
+      // Fetch mock applicants for the demo
       const { data } = await supabase
         .from('profiles')
         .select('id, full_name, location, trust_score, skills(name), experiences(title, evidence_url)')
+        .neq('id', session.user.id) 
         .limit(1)
       
       if (data && data.length > 0) setApplicants(data as ApplicantProfile[])
       setLoading(false)
     }
     loadData()
-  }, [])
+  }, [router])
+
+  // ==========================================
+  // 3. ACTIONS
+  // ==========================================
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/')
+  }
 
   const handleFundEscrow = () => {
     setEscrowFunded(true)
@@ -53,14 +108,79 @@ export default function EmployerPage() {
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } })
   }
 
+  const handlePostJob = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPosting(true)
+
+    const { error } = await supabase
+      .from('micro_tasks')
+      .insert({
+        title: jobTitle,
+        description: jobDescription,
+        pay_amount: parseInt(jobPay),
+        duration_days: parseInt(jobDuration),
+        employer_name: employerName,
+        location: jobLocation,
+        status: 'open',
+        skills_required: [] 
+      })
+
+    if (error) {
+      alert("Error posting job: " + error.message)
+      setPosting(false)
+      return
+    }
+
+    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } })
+    setShowPostModal(false)
+    setPosting(false)
+    
+    // Reset form
+    setJobTitle('')
+    setJobDescription('')
+    setJobPay('')
+    setJobDuration('1')
+    
+    alert("Opportunity posted successfully! It is now live on the youth Task Board.")
+  }
+
+  // ==========================================
+  // 4. SKELETON LOADER
+  // ==========================================
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 pb-20 animate-pulse transition-colors duration-200">
+        <header className="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 lg:px-8 flex items-center justify-between">
+          <div className="h-8 w-32 bg-slate-200 dark:bg-slate-700 rounded-lg" />
+          <div className="h-6 w-16 bg-slate-200 dark:bg-slate-700 rounded-lg" />
+        </header>
+        <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
+          <div className="h-20 w-full rounded-2xl bg-slate-200 dark:bg-slate-700 mb-6" />
+          <div className="space-y-3 mb-8">
+            <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
+            <div className="h-8 w-64 bg-slate-300 dark:bg-slate-600 rounded" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-28 rounded-2xl bg-slate-200 dark:bg-slate-700" />
+            ))}
+          </div>
+          <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+            <div className="h-96 rounded-2xl bg-slate-200 dark:bg-slate-700" />
+            <div className="h-96 rounded-2xl bg-slate-200 dark:bg-slate-700" />
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // ==========================================
+  // 5. MAIN UI
+  // ==========================================
   return (
     <div className="min-h-screen bg-[#f7f9fc] dark:bg-slate-900 dark:text-slate-100 pb-20 transition-colors duration-200">
       
-      {/* 
-        PRINT CSS: 
-        Hides the background and specific UI elements when the user clicks "Save PDF".
-        Forces a white background for the printed document.
-      */}
+      {/* PRINT CSS */}
       <style jsx global>{`
         @media print {
           body { background: white !important; }
@@ -79,14 +199,13 @@ export default function EmployerPage() {
             </svg>
           </span>
           <span className="text-xl font-extrabold tracking-tight text-slate-950 dark:text-white">Vouch</span>
-          <span className="ml-2 rounded-md bg-slate-100 dark:bg-slate-700 px-2 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-            Employer Workspace
-          </span>
         </div>
 
-        <Link href="/roles" className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white transition-colors">
-          Back to Youth App
-        </Link>
+        <div className="flex items-center gap-4">
+          <button onClick={handleLogout} className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-red-600 transition-colors">
+            Log out
+          </button>
+        </div>
       </header>
 
       <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
@@ -100,21 +219,33 @@ export default function EmployerPage() {
               <p className="text-slate-300 text-xs">Get AI shortlisting, direct WhatsApp, & advanced filters.</p>
             </div>
           </div>
-          <button 
-            onClick={() => setShowProModal(true)} 
-            className="bg-white text-slate-900 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-100 transition shadow-sm"
-          >
+          <button onClick={() => setShowProModal(true)} className="bg-white text-slate-900 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-100 transition shadow-sm">
             View Plans
           </button>
         </div>
 
-        <div className="no-print">
-          <PageTitle 
-            eyebrow="LANGA CORNER STORE" 
-            title="Hiring made simpler" 
-            text="Find capable young people for short, meaningful work." 
-            action={<Button icon="plus">Post an opportunity</Button>} 
-          />
+        {/* Page Title & Post Button (Hidden during print) */}
+        <div className="no-print flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-7 mt-6">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
+              EMPLOYER DASHBOARD
+            </p>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-blue-600 dark:text-blue-500 tracking-tight">
+              {employerName}
+            </h1>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Find capable young people for short, meaningful work.
+            </p>
+          </div>
+          <div>
+            <button 
+              type="button"
+              onClick={() => setShowPostModal(true)} 
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-md hover:bg-blue-700 transition-colors"
+            >
+              <Icon name="plus" size={18} /> Post an opportunity
+            </button>
+          </div>
         </div>
 
         {/* Stats Row (Hidden during print) */}
@@ -157,34 +288,25 @@ export default function EmployerPage() {
             </div>
 
             <div className="space-y-4">
-              {loading ? (
-                <p className="text-sm text-slate-500 animate-pulse">Loading applicant data...</p>
-              ) : applicants.length === 0 ? (
+              {applicants.length === 0 ? (
                 <p className="text-sm text-slate-500">No applicants yet.</p>
               ) : (
                 applicants.map((user) => {
-                  const isNamibia = user.location?.toLowerCase().includes('namibia')
-                  const currency = isNamibia ? 'N$' : 'R'
-
-                  // --- DYNAMIC TRUST SCORE CALCULATION ---
-                  // Base 40 points for having an account. 
-                  // +20 for skills, +15 for experience, +15 for evidence URL. (Max 90)
                   let calculatedTrust = 40;
                   if (user.skills?.length > 0) calculatedTrust += 20;
                   if (user.experiences?.[0]) calculatedTrust += 15;
                   if (user.experiences?.[0]?.evidence_url) calculatedTrust += 15;
 
                   return (
-                    <div key={user.id} className="flex flex-col gap-4 rounded-xl border border-slate-100 dark:border-slate-700 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <div key={user.id} className="flex flex-col gap-4 rounded-xl border border-slate-100 dark:border-slate-700 p-4">
                       <div className="flex items-center gap-3">
                         <span className="grid h-12 w-12 place-items-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-sm font-extrabold text-blue-700 dark:text-blue-300">
                           {user.full_name?.substring(0, 2).toUpperCase() || 'U'}
                         </span>
                         <div className="flex-1">
                           <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{user.full_name}</p>
-                          <p className="text-xs text-slate-400 dark:text-slate-500">{user.location}</p>
+                          <p className="text-xs text-slate-400">{user.location}</p>
                         </div>
-                        
                         <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-2 py-1 border border-emerald-100 dark:border-emerald-900 text-center">
                           <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Trust</p>
                           <p className="font-extrabold text-emerald-700 dark:text-emerald-400 text-sm">{calculatedTrust}/100</p>
@@ -226,14 +348,12 @@ export default function EmployerPage() {
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
                 Vouch uses Escrow to protect youth from unpaid work. Funds are held securely until completion.
               </p>
-              
               {escrowFunded ? (
-                <div className="p-4 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 text-center transition-all">
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 rounded-xl border border-emerald-200 dark:border-emerald-900/50 text-center">
                   <div className="flex justify-center mb-2">
                     <Icon name="check" size={24} />
                   </div>
                   <p className="font-bold">Escrow Funded!</p>
-                  <p className="text-xs mt-1">The youth has been notified to start work.</p>
                 </div>
               ) : (
                 <button onClick={handleFundEscrow} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md flex justify-center items-center gap-2">
@@ -241,25 +361,63 @@ export default function EmployerPage() {
                 </button>
               )}
             </div>
-
-            <div className="rounded-2xl bg-slate-950 dark:bg-slate-800/80 dark:border dark:border-slate-700 p-6 text-white transition-colors duration-200">
-              <p className="text-xs font-bold uppercase tracking-wider text-blue-300">Hiring tip</p>
-              <h2 className="mt-3 text-xl font-extrabold">Focus on demonstrated skills, not formal titles.</h2>
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                Vouch profiles translate informal experience into relevant workplace capabilities.
-              </p>
-            </div>
           </div>
-
         </div>
       </main>
 
-      {/* Vouch Pro Modal (Hidden during print) */}
+      {/* POST JOB MODAL */}
+      {showPostModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setShowPostModal(false)}>
+          <div className="relative bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowPostModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-6">Post an Opportunity</h2>
+            
+            <form onSubmit={handlePostJob} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Job Title</label>
+                <input type="text" required value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="e.g. Weekend Shop Assistant" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 outline-none dark:text-white" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Description</label>
+                <textarea required value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="What will they be doing?" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 outline-none dark:text-white min-h-[80px]" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Pay (N$)</label>
+                  <input type="number" required value={jobPay} onChange={(e) => setJobPay(e.target.value)} placeholder="850" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 outline-none dark:text-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Duration (Days)</label>
+                  <input type="number" required value={jobDuration} onChange={(e) => setJobDuration(e.target.value)} min="1" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 outline-none dark:text-white" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Location</label>
+                <select value={jobLocation} onChange={(e) => setJobLocation(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 outline-none dark:text-white">
+                  <option>Windhoek</option>
+                  <option>Swakopmund</option>
+                  <option>Oshakati</option>
+                  <option>Remote</option>
+                </select>
+              </div>
+              <button type="submit" disabled={posting} className="w-full mt-2 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md disabled:opacity-50">
+                {posting ? 'Posting...' : 'Post Job'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* VOUCH PRO MODAL (Hidden during print) */}
       {showProModal && (
-        <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl">
+        <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setShowProModal(false)}>
+          <div className="relative bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowProModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             <h2 className="text-2xl font-extrabold text-center mb-2 text-slate-900 dark:text-white">Vouch Pro</h2>
-            <p className="text-center text-slate-500 mb-6 text-sm">Supercharge your hiring.</p>
+            <p className="text-center text-slate-500 dark:text-slate-400 mb-6 text-sm">Supercharge your hiring.</p>
             <div className="space-y-4 mb-8">
               <div className="flex items-center gap-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
                 <span className="text-emerald-500 flex items-center"><Icon name="check" size={16} /></span> Unlimited gig posting

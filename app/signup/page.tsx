@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
@@ -13,58 +13,69 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  
+  const searchParams = useSearchParams()
+  const redirectParam = searchParams.get('redirect')
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    
     const { error: signUpError } = await supabase.auth.signUp({ 
       email, 
       password,
       options: { data: { full_name: name, country: country } }
     })
+    
     if (signUpError) {
       setError(signUpError.message)
       setLoading(false)
       return
     }
-    router.push('/dashboard')
+
+    // ==========================================
+    // SMART REDIRECT LOGIC FOR NEW USERS
+    // ==========================================
+    // 1. If the URL has ?redirect=/employer, send them there.
+    // 2. If not, check if their email contains "employer".
+    // 3. If not, send to default youth dashboard.
+    
+    let destination = '/dashboard'
+    
+    if (redirectParam) {
+      destination = redirectParam
+    } else if (email.toLowerCase().includes('employer')) {
+      destination = '/employer'
+    }
+    
+    router.push(destination)
   }
 
   return (
-    // FIX: Added dark:bg-slate-900
     <main className="grid min-h-screen bg-white dark:bg-slate-900 transition-colors duration-200 lg:grid-cols-2">
-      
-      {/* --- LEFT SIDE: Signup Form --- */}
-      {/* FIX: Added dark:bg-slate-900 */}
       <section className="flex flex-col px-5 py-6 sm:px-12 lg:px-16 dark:bg-slate-900">
         
         <Link href="/" className="w-fit flex items-center gap-2.5">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-600 text-white">
             <svg fill="none" height="22" viewBox="0 0 24 24" width="22"><path d="m5 6 7 13 7-13h-4l-3 6-3-6H5Z" fill="currentColor" /><path d="m8 3 4 7 4-7" stroke="currentColor" strokeLinecap="round" strokeWidth="2" /></svg>
           </span>
-          {/* FIX: Added dark:text-white to logo text */}
           <span className="text-xl font-extrabold tracking-tight text-slate-950 dark:text-white">Vouch</span>
         </Link>
         
         <div className="mx-auto my-auto w-full max-w-md py-12">
           <p className="mb-2 text-sm font-bold text-blue-600 dark:text-blue-400">JOIN VOUCH</p>
-          {/* FIX: Added dark:text-white to headings */}
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">Create your free profile</h1>
-          {/* FIX: Added dark:text-slate-400 to subtext */}
           <p className="mt-2 text-slate-500 dark:text-slate-400">Show what you can do and find paid work that fits.</p>
           
           <form className="mt-8 space-y-5" onSubmit={handleSignup}>
-            
             <label className="block">
-              {/* FIX: Added dark:text-slate-200 to labels */}
-              <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Full name</span>
+              <span className="mb-2 block text-sm font-bold text-slate-800 dark:text-slate-200">Full name / Business Name</span>
               <input 
                 type="text" 
                 value={name} 
                 onChange={(e) => setName(e.target.value)} 
                 required 
-                // FIX: Added dark mode background, text, and border colors
                 className="h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm text-slate-900 dark:text-white outline-none transition placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950/50" 
                 placeholder="e.g. Thabo Mokoena" 
               />
@@ -90,7 +101,7 @@ export default function SignupPage() {
                   value={password} 
                   onChange={(e) => setPassword(e.target.value)} 
                   required 
-                  minLength={6}
+                  minLength={8}
                   className="h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-4 pr-12 text-sm text-slate-900 dark:text-white outline-none transition placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950/50" 
                   placeholder="At least 8 characters" 
                 />
@@ -131,14 +142,19 @@ export default function SignupPage() {
             </button>
           </form>
           
-          {/* FIX: Added dark:text-slate-400 to bottom text */}
           <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
-            Already have an account? <Link href="/login" className="font-bold text-blue-600 dark:text-blue-400 hover:underline">Log in</Link>
+            Already have an account? 
+            {/* Preserve the redirect param when going back to login */}
+            <Link 
+              href={redirectParam ? `/login?redirect=${redirectParam}` : '/login'} 
+              className="font-bold text-blue-600 dark:text-blue-400 hover:underline ml-1"
+            >
+              Log in
+            </Link>
           </p>
         </div>
       </section>
 
-      {/* --- RIGHT SIDE: Blue Decorative Box (Stays Blue) --- */}
       <section className="relative hidden overflow-hidden bg-blue-700 p-16 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute -right-28 -top-28 h-96 w-96 rounded-full border-[70px] border-blue-600" />
         <div className="relative mt-24 max-w-lg">
@@ -150,7 +166,6 @@ export default function SignupPage() {
           <div><p className="text-3xl font-extrabold">100%</p><p className="text-sm text-blue-200">free for youth</p></div>
         </div>
       </section>
-      
     </main>
   )
 }

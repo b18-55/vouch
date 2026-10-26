@@ -1,3 +1,9 @@
+// ==========================================
+// LANDING PAGE
+// ==========================================
+// This is the first page users see. It establishes trust, shows the core value proposition,
+// and routes users into the correct authentication flow (Youth vs Employer).
+
 import Link from 'next/link'
 import { Button, Icon } from '@/components/ui'
 
@@ -18,9 +24,6 @@ function Logo() {
   )
 }
 
-// ==========================================
-// MAIN LANDING PAGE
-// ==========================================
 export default function Home() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f9fc] dark:bg-slate-900 transition-colors duration-200">
@@ -28,10 +31,8 @@ export default function Home() {
       {/* --- TOP NAVIGATION BAR --- */}
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8">
         <Logo />
-        
         <div className="flex items-center gap-2">
           <Button className="hidden sm:inline-flex" kind="ghost" href="/roles">Explore Vouch</Button>
-          <Button kind="ghost" href="/login">Log in</Button>
         </div>
       </nav>
 
@@ -42,8 +43,7 @@ export default function Home() {
         <div className="relative z-10">
           
           <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-100 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-400">
-            <Icon name="spark" size={15} />
-            Your experience counts
+            <Icon name="spark" size={15} /> Your experience counts
           </span>
 
           <h1 className="max-w-2xl text-5xl font-extrabold leading-[1.05] tracking-[-0.045em] text-slate-950 dark:text-white sm:text-6xl lg:text-7xl">
@@ -54,21 +54,27 @@ export default function Home() {
             Whether you want to earn or hire, Vouch turns real-world experience into trusted skills and better matches.
           </p>
 
+          {/* 
+            ==========================================
+            CRITICAL ROUTING LOGIC
+            ==========================================
+            - 'Find Work' sends users to the standard login. 
+            - 'Hire Talent' sends users to login BUT adds '?redirect=/employer'. 
+            - This tells the login page to send them straight to the Employer Dashboard after they authenticate.
+          */}
           <div className="mt-8 grid gap-3 sm:max-w-xl sm:grid-cols-2">
-            <Button className="min-h-12 px-6" icon="arrow" href="/signup">Find work</Button>
-            <Button className="min-h-12 px-6" kind="secondary" href="/signup">Hire talent</Button>
+            <Button className="min-h-12 px-6" icon="arrow" href="/login">Find work</Button>
+            <Button className="min-h-12 px-6" kind="secondary" href="/login?redirect=/employer">Hire talent</Button>
           </div>
 
           <p className="mt-5 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-            <Icon name="check" size={17} />
-            Free for youth · Short, meaningful work for employers
+            <Icon name="check" size={17} /> Free for youth · Short, meaningful work for employers
           </p>
         </div>
 
         {/* RIGHT SIDE: The Floating Card Illustration */}
         {/* This purely decorative UI mockup helps sell the product before the user even logs in */}
         <div className="relative mx-auto w-full max-w-lg">
-          
           <div className="absolute -left-10 top-12 h-64 w-64 rounded-full bg-blue-200/50 dark:bg-blue-900/30 blur-3xl" />
           <div className="absolute -right-10 bottom-4 h-56 w-56 rounded-full bg-amber-200/50 dark:bg-amber-900/20 blur-3xl" />
           
